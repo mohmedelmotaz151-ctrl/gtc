@@ -1,0 +1,6 @@
+{
+  "name": "GCC Center",
+  "description": "منصة تعليمية متكاملة للكورسات والمحاضرات والتدريب مع لوحة تحكم لإدارة المحتوى واختبارات وشهادات إتمام",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
