@@ -21,6 +21,7 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { Category, Course, Lesson, User } from '../types';
+import FileUploader from './FileUploader';
 
 interface AdminDashboardProps {
   categories: Category[];
@@ -365,14 +366,21 @@ export default function AdminDashboard({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">رابط صورة الغلاف لرمز القسم (Unsplash):</label>
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-600 mb-1">رابط صورة الغلاف لرمز القسم (أو ارفع بالأسفل):</label>
                   <input
                     type="url"
                     placeholder="رابط URL اختياري للصورة..."
                     value={catImage}
                     onChange={(e) => setCatImage(e.target.value)}
-                    className="w-full text-xs text-slate-900 border border-slate-250 p-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-right"
+                    className="w-full text-xs text-slate-900 border border-slate-250 p-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-right mb-2"
+                  />
+                  <FileUploader
+                    id="category-image-uploader"
+                    accept="image/*"
+                    label="رفع صورة غلاف القسم إلى السيرفر السحابي:"
+                    onUploadSuccess={(url) => setCatImage(url)}
+                    helperText="اسحب صورة القسم هنا للرفع التلقائي"
                   />
                 </div>
               </div>
@@ -527,14 +535,21 @@ export default function AdminDashboard({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">رابط صورة الغلاف الخلفية للكورس:</label>
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-600 mb-1">رابط صورة غلاف الكورس (أو ارفع بالأسفل):</label>
                   <input
                     type="url"
                     placeholder="Unsplash URL..."
                     value={courseImg}
                     onChange={(e) => setCourseImg(e.target.value)}
-                    className="w-full text-xs text-slate-900 border border-slate-250 p-2 rounded-xl focus:outline-none text-left"
+                    className="w-full text-xs text-slate-900 border border-slate-250 p-2 rounded-xl focus:outline-none text-left mb-2"
+                  />
+                  <FileUploader
+                    id="course-image-uploader"
+                    accept="image/*"
+                    label="رفع غلاف الكورس سحابياً:"
+                    onUploadSuccess={(url) => setCourseImg(url)}
+                    helperText="اسحب صورة غلاف الدبلومة للرفع والتأمين"
                   />
                 </div>
 
@@ -691,14 +706,21 @@ export default function AdminDashboard({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">رابط الدرس أو غلاف مرجعي (اختياري):</label>
+                <div className="space-y-2 col-span-1 md:col-span-3">
+                  <label className="block text-xs font-bold text-slate-600 mb-1">رابط الدرس أو ملف المحاضرة (أو ارفع بالأسفل):</label>
                   <input
                     type="text"
-                    placeholder="رابط فديو mp4 أو غيره..."
+                    placeholder="رابط فيديو MP4 أو مستند أو كود..."
                     value={lessonUrl}
                     onChange={(e) => setLessonUrl(e.target.value)}
-                    className="w-full text-xs text-slate-905 border border-slate-250 p-2 rounded-xl focus:outline-none text-left"
+                    className="w-full text-xs text-slate-905 border border-slate-250 p-2 rounded-xl focus:outline-none text-left mb-2"
+                  />
+                  <FileUploader
+                    id="lesson-media-uploader"
+                    accept={lessonType === 'video' ? 'video/*' : lessonType === 'pdf' ? 'application/pdf' : 'image/*,application/*'}
+                    label={`رفع ملف المحاضرة (${lessonType === 'video' ? 'فيديو' : lessonType === 'pdf' ? 'PDF' : 'مستند/عرض تقديمي'}) سحابياً لـ Cloudinary:`}
+                    onUploadSuccess={(url) => setLessonUrl(url)}
+                    helperText={`اسحب ملف الـ ${lessonType === 'video' ? 'فيديو المباشر' : 'مستند'} هنا للرفع الآمن`}
                   />
                 </div>
 

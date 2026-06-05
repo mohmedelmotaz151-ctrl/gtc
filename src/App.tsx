@@ -81,34 +81,89 @@ export default function App() {
   const [loginPhone, setLoginPhone] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
 
-  // Load state from LocalStorage on mount
+  // Helper to sync updated values to backend
+  const syncToBackend = async (cats: Category[], crs: Course[], lsns: Record<string, Lesson[]>) => {
+    try {
+      await fetch('/api/training-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories: cats, courses: crs, lessons: lsns })
+      });
+    } catch (err) {
+      console.error("Failed syncing to backend database API:", err);
+    }
+  };
+
+  // Load state from LocalStorage or Server API on mount
   useEffect(() => {
-    // Categories
-    const localCats = localStorage.getItem(LOCAL_CAT_KEY);
-    if (localCats) {
-      setCategories(JSON.parse(localCats));
-    } else {
-      setCategories(INITIAL_CATEGORIES);
-      localStorage.setItem(LOCAL_CAT_KEY, JSON.stringify(INITIAL_CATEGORIES));
-    }
+    const fetchServerAndLocalData = async () => {
+      let loadedCats: Category[] = [];
+      let loadedCourses: Course[] = [];
+      let loadedLessons: Record<string, Lesson[]> = {};
 
-    // Courses
-    const localCourses = localStorage.getItem(LOCAL_CRS_KEY);
-    if (localCourses) {
-      setCourses(JSON.parse(localCourses));
-    } else {
-      setCourses(INITIAL_COURSES);
-      localStorage.setItem(LOCAL_CRS_KEY, JSON.stringify(INITIAL_COURSES));
-    }
+      try {
+        const response = await fetch('/api/training-data');
+        const resData = await response.json();
+        
+        if (resData.success && resData.categories && resData.courses && resData.lessons) {
+          loadedCats = resData.categories;
+          loadedCourses = resData.courses;
+          loadedLessons = resData.lessons;
+          console.log("Loaded training data successfully from full-stack api backend database.");
+        }
+      } catch (err) {
+        console.error("Could not fetch training programs from API endpoint:", err);
+      }
 
-    // Lessons
-    const localLessons = localStorage.getItem(LOCAL_LSN_KEY);
-    if (localLessons) {
-      setLessons(JSON.parse(localLessons));
-    } else {
-      setLessons(INITIAL_LESSONS);
-      localStorage.setItem(LOCAL_LSN_KEY, JSON.stringify(INITIAL_LESSONS));
-    }
+      // Fallback: LocalStorage or defaults
+      if (!loadedCats.length) {
+        const localCats = localStorage.getItem(LOCAL_CAT_KEY);
+        if (localCats) {
+          loadedCats = JSON.parse(localCats);
+        } else {
+          loadedCats = INITIAL_CATEGORIES;
+        }
+      }
+
+      if (!loadedCourses.length) {
+        const localCourses = localStorage.getItem(LOCAL_CRS_KEY);
+        if (localCourses) {
+          loadedCourses = JSON.parse(localCourses);
+        } else {
+          loadedCourses = INITIAL_COURSES;
+        }
+      }
+
+      if (Object.keys(loadedLessons).length === 0) {
+        const localLessons = localStorage.getItem(LOCAL_LSN_KEY);
+        if (localLessons) {
+          loadedLessons = JSON.parse(localLessons);
+        } else {
+          loadedLessons = INITIAL_LESSONS;
+        }
+      }
+
+      setCategories(loadedCats);
+      setCourses(loadedCourses);
+      setLessons(loadedLessons);
+
+      localStorage.setItem(LOCAL_CAT_KEY, JSON.stringify(loadedCats));
+      localStorage.setItem(LOCAL_CRS_KEY, JSON.stringify(loadedCourses));
+      localStorage.setItem(LOCAL_LSN_KEY, JSON.stringify(loadedLessons));
+
+      // Sync/initialize backend database with initial data if empty
+      try {
+        await fetch('/api/training-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categories: loadedCats, courses: loadedCourses, lessons: loadedLessons })
+        });
+      } catch (e) {
+        console.warn("Auto-initializing backend storage failed:", e);
+      }
+    };
+
+    fetchServerAndLocalData();
 
     // Users
     const initialUsers: UserType[] = [
@@ -156,20 +211,23 @@ export default function App() {
     }
   }, []);
 
-  // Save changes helper functions to sync with localStorage
+  // Save changes helper functions to sync with localStorage and backend Cloud database
   const saveCategories = (updated: Category[]) => {
     setCategories(updated);
     localStorage.setItem(LOCAL_CAT_KEY, JSON.stringify(updated));
+    syncToBackend(updated, courses, lessons);
   };
 
   const saveCourses = (updated: Course[]) => {
     setCourses(updated);
     localStorage.setItem(LOCAL_CRS_KEY, JSON.stringify(updated));
+    syncToBackend(categories, updated, lessons);
   };
 
   const saveLessons = (updated: Record<string, Lesson[]>) => {
     setLessons(updated);
     localStorage.setItem(LOCAL_LSN_KEY, JSON.stringify(updated));
+    syncToBackend(categories, courses, updated);
   };
 
   const saveUsers = (updated: UserType[]) => {

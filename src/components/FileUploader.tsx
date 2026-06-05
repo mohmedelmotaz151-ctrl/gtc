@@ -1,0 +1,173 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useRef } from 'react';
+import { Upload, File, Image, Video, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+
+interface FileUploaderProps {
+  id: string;
+  accept: string;
+  label: string;
+  onUploadSuccess: (url: string) => void;
+  helperText?: string;
+}
+
+export default function FileUploader({
+  id,
+  accept,
+  label,
+  onUploadSuccess,
+  helperText = "يدعم الملفات الصوتية، المرئية، والمستندات عبر السيرفر السحابي كلويديناري"
+}: FileUploaderProps) {
+  const [dragOver, setDragOver] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string>('');
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setDragOver(false);
+  };
+
+  const uploadFile = async (file: File) => {
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    setUploadedUrl(null);
+    setFileName(file.name);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'فشل في رفع الملف إلى سيرفر كلويديناري العام');
+      }
+
+      const data = await response.json();
+      if (data.success && data.url) {
+        setUploadedUrl(data.url);
+        onUploadSuccess(data.url);
+      } else {
+        throw new Error('لم يرجع السيرفر رابطاً صالحاً.');
+      }
+    } catch (err: any) {
+      console.error('Upload handler error:', err);
+      setUploadError(err.message || 'وقع عطل أثناء استدعاء سيرفر الرفع.');
+    } finally {
+      setIsUploading(false);
+      setDragOver(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      uploadFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      uploadFile(e.target.files[0]);
+    }
+  };
+
+  const triggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  return (
+    <div className="space-y-2 mt-1" id={`uploader-container-${id}`}>
+      <label className="block text-xs font-bold text-slate-700 text-right">
+        {label}
+      </label>
+
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={triggerFileInput}
+        className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[140px] relative ${
+          dragOver 
+            ? 'border-amber-500 bg-amber-500/5 scale-[0.99]' 
+            : uploadedUrl 
+            ? 'border-emerald-500 bg-emerald-500/5' 
+            : 'border-slate-200 bg-slate-50 hover:bg-slate-100/70 hover:border-slate-300'
+        }`}
+      >
+        <input
+          id={id}
+          ref={fileInputRef}
+          type="file"
+          accept={accept}
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        {isUploading ? (
+          <div className="flex flex-col items-center space-y-2 text-amber-600">
+            <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+            <p className="text-xs font-bold">جاري رفع الملف وتأمينه على وبثّه لقاعدة البيانات السحابية...</p>
+            <span className="text-[10px] text-slate-400 max-w-[250px] truncate">{fileName}</span>
+          </div>
+        ) : uploadedUrl ? (
+          <div className="flex flex-col items-center space-y-2 text-emerald-600">
+            <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+            <p className="text-xs font-extrabold text-emerald-750">تم الرفع بنجاح وحفظه على Cloudinary!</p>
+            <span className="text-[10px] text-slate-500 max-w-[280px] break-all truncate underline">{uploadedUrl}</span>
+            <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black mt-1">
+              جاهز للاستخدام
+            </span>
+          </div>
+        ) : uploadError ? (
+          <div className="flex flex-col items-center space-y-2 text-rose-600">
+            <AlertCircle className="h-8 w-8 text-rose-500" />
+            <p className="text-xs font-bold">فشل الرفع: {uploadError}</p>
+            <p className="text-[10px] text-slate-400">انقر أو اسحب ملفاً هنا للمحاولة مجدداً</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center space-y-2">
+            <div className="p-2.5 bg-white rounded-full shadow-sm border border-slate-100 text-slate-400">
+              {accept.includes('image') ? (
+                <Image className="h-6 w-6" />
+              ) : accept.includes('video') ? (
+                <Video className="h-6 w-6" />
+              ) : (
+                <File className="h-6 w-6" />
+              )}
+            </div>
+            <div className="text-slate-600 space-y-0.5">
+              <p className="text-xs font-extrabold flex items-center justify-center gap-1">
+                <span>اسحب وأفلت الملف هنا أو</span>
+                <span className="text-amber-500 hover:text-amber-600 underline">اضغط للتصفح</span>
+              </p>
+              <p className="text-[10px] text-slate-400 font-normal">
+                {helperText}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
