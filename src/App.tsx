@@ -39,6 +39,26 @@ import {
 import { Category, Course, Lesson, User as UserType, Certificate, LessonProgress } from './types';
 import { INITIAL_CATEGORIES, INITIAL_COURSES, INITIAL_LESSONS } from './initialData';
 
+import {
+  fetchCategoriesFromDb,
+  saveCategoryToDb,
+  deleteCategoryFromDb,
+  fetchCoursesFromDb,
+  saveCourseToDb,
+  deleteCourseFromDb,
+  fetchLessonsFromDb,
+  saveLessonToDb,
+  deleteLessonFromDb,
+  saveLessonsBatchToDb,
+  fetchUsersFromDb,
+  saveUserToDb,
+  fetchProgressFromDb,
+  saveProgressRecordToDb,
+  deleteProgressRecordFromDb,
+  fetchCertificatesFromDb,
+  saveCertificateToDb
+} from './lib/firestoreService';
+
 import Header from './components/Header';
 import Footer from './components/Footer';
 import InteractivePlayer from './components/InteractivePlayer';
@@ -97,69 +117,53 @@ export default function App() {
   // Load state from LocalStorage or Server API on mount
   useEffect(() => {
     const fetchServerAndLocalData = async () => {
-      let loadedCats: Category[] = [];
-      let loadedCourses: Course[] = [];
-      let loadedLessons: Record<string, Lesson[]> = {};
-
       try {
-        const response = await fetch('/api/training-data');
-        const resData = await response.json();
-        
-        if (resData.success && resData.categories && resData.courses && resData.lessons) {
-          loadedCats = resData.categories;
-          loadedCourses = resData.courses;
-          loadedLessons = resData.lessons;
-          console.log("Loaded training data successfully from full-stack api backend database.");
+        // 1. Fetch categories
+        let dbCats = await fetchCategoriesFromDb();
+        if (dbCats.length === 0) {
+          console.log("Seeding initial categories to Firestore database...");
+          for (const cat of INITIAL_CATEGORIES) {
+            await saveCategoryToDb(cat);
+          }
+          dbCats = INITIAL_CATEGORIES;
         }
+        setCategories(dbCats);
+        localStorage.setItem(LOCAL_CAT_KEY, JSON.stringify(dbCats));
+
+        // 2. Fetch courses
+        let dbCourses = await fetchCoursesFromDb();
+        if (dbCourses.length === 0) {
+          console.log("Seeding initial courses to Firestore database...");
+          for (const course of INITIAL_COURSES) {
+            await saveCourseToDb(course);
+          }
+          dbCourses = INITIAL_COURSES;
+        }
+        setCourses(dbCourses);
+        localStorage.setItem(LOCAL_CRS_KEY, JSON.stringify(dbCourses));
+
+        // 3. Fetch lessons
+        let dbLessons = await fetchLessonsFromDb();
+        if (Object.keys(dbLessons).length === 0) {
+          console.log("Seeding initial lessons to Firestore database...");
+          const flatLessons: Lesson[] = [];
+          Object.values(INITIAL_LESSONS).forEach(list => {
+            flatLessons.push(...list);
+          });
+          await saveLessonsBatchToDb(flatLessons);
+          dbLessons = INITIAL_LESSONS;
+        }
+        setLessons(dbLessons);
+        localStorage.setItem(LOCAL_LSN_KEY, JSON.stringify(dbLessons));
+        console.log("Firebase Firestore synchronisation completed successfully!");
       } catch (err) {
-        console.error("Could not fetch training programs from API endpoint:", err);
-      }
-
-      // Fallback: LocalStorage or defaults
-      if (!loadedCats.length) {
+        console.error("Error synching list data from Firestore, loading from LocalStorage/default:", err);
         const localCats = localStorage.getItem(LOCAL_CAT_KEY);
-        if (localCats) {
-          loadedCats = JSON.parse(localCats);
-        } else {
-          loadedCats = INITIAL_CATEGORIES;
-        }
-      }
-
-      if (!loadedCourses.length) {
+        setCategories(localCats ? JSON.parse(localCats) : INITIAL_CATEGORIES);
         const localCourses = localStorage.getItem(LOCAL_CRS_KEY);
-        if (localCourses) {
-          loadedCourses = JSON.parse(localCourses);
-        } else {
-          loadedCourses = INITIAL_COURSES;
-        }
-      }
-
-      if (Object.keys(loadedLessons).length === 0) {
+        setCourses(localCourses ? JSON.parse(localCourses) : INITIAL_COURSES);
         const localLessons = localStorage.getItem(LOCAL_LSN_KEY);
-        if (localLessons) {
-          loadedLessons = JSON.parse(localLessons);
-        } else {
-          loadedLessons = INITIAL_LESSONS;
-        }
-      }
-
-      setCategories(loadedCats);
-      setCourses(loadedCourses);
-      setLessons(loadedLessons);
-
-      localStorage.setItem(LOCAL_CAT_KEY, JSON.stringify(loadedCats));
-      localStorage.setItem(LOCAL_CRS_KEY, JSON.stringify(loadedCourses));
-      localStorage.setItem(LOCAL_LSN_KEY, JSON.stringify(loadedLessons));
-
-      // Sync/initialize backend database with initial data if empty
-      try {
-        await fetch('/api/training-data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ categories: loadedCats, courses: loadedCourses, lessons: loadedLessons })
-        });
-      } catch (e) {
-        console.warn("Auto-initializing backend storage failed:", e);
+        setLessons(localLessons ? JSON.parse(localLessons) : INITIAL_LESSONS);
       }
     };
 
@@ -216,23 +220,29 @@ export default function App() {
     setCategories(updated);
     localStorage.setItem(LOCAL_CAT_KEY, JSON.stringify(updated));
     syncToBackend(updated, courses, lessons);
+    updated.forEach(cat => saveCategoryToDb(cat));
   };
 
   const saveCourses = (updated: Course[]) => {
     setCourses(updated);
     localStorage.setItem(LOCAL_CRS_KEY, JSON.stringify(updated));
     syncToBackend(categories, updated, lessons);
+    updated.forEach(crs => saveCourseToDb(crs));
   };
 
   const saveLessons = (updated: Record<string, Lesson[]>) => {
     setLessons(updated);
     localStorage.setItem(LOCAL_LSN_KEY, JSON.stringify(updated));
     syncToBackend(categories, courses, updated);
+    Object.values(updated).forEach(lsnList => {
+      lsnList.forEach(l => saveLessonToDb(l));
+    });
   };
 
   const saveUsers = (updated: UserType[]) => {
     setUsers(updated);
     localStorage.setItem(LOCAL_USR_KEY, JSON.stringify(updated));
+    updated.forEach(u => saveUserToDb(u));
   };
 
   const saveProgress = (updated: LessonProgress[]) => {
@@ -243,6 +253,7 @@ export default function App() {
   const saveCertificates = (updated: Certificate[]) => {
     setCertificates(updated);
     localStorage.setItem(LOCAL_CRT_KEY, JSON.stringify(updated));
+    updated.forEach(c => saveCertificateToDb(c));
   };
 
   // Sign out handler
@@ -351,6 +362,7 @@ export default function App() {
     if (existsIdx > -1) {
       // Toggle off
       updatedPrg.splice(existsIdx, 1);
+      deleteProgressRecordFromDb(currentUser.id, lessonId);
     } else {
       // Save completion
       const activeCr = courses.find(c => {
@@ -358,13 +370,15 @@ export default function App() {
         return lsnLit.some(l => l.id === lessonId);
       });
 
-      updatedPrg.push({
+      const newProg: LessonProgress = {
         userId: currentUser.id,
         courseId: activeCr ? activeCr.id : 'unknown',
         lessonId: lessonId,
         completed: true,
         completedAt: new Date().toISOString()
-      });
+      };
+      updatedPrg.push(newProg);
+      saveProgressRecordToDb(newProg);
     }
 
     saveProgress(updatedPrg);
@@ -454,6 +468,11 @@ export default function App() {
   const handleDeleteCourse = (courseId: string) => {
     const filtered = courses.filter(c => c.id !== courseId);
     saveCourses(filtered);
+    deleteCourseFromDb(courseId);
+
+    // Delete associated lessons
+    const courseLessons = lessons[courseId] || [];
+    courseLessons.forEach(l => deleteLessonFromDb(l.id));
 
     // Remove from map, progress records
     const updatedLsn = { ...lessons };
@@ -471,6 +490,7 @@ export default function App() {
   const handleDeleteCategory = (catId: string) => {
     const filtered = categories.filter(c => c.id !== catId);
     saveCategories(filtered);
+    deleteCategoryFromDb(catId);
   };
 
   // Searching logic

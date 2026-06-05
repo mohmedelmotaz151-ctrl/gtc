@@ -1,0 +1,119 @@
+{
+  "entities": {
+    "Category": {
+      "title": "Category",
+      "description": "Category representation containing id, name, and an icon",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "image": { "type": "string" },
+        "iconName": { "type": "string" }
+      },
+      "required": ["id", "name", "image", "iconName"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Course information which contains duration, level, instructor, category link, and lesson counts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "image": { "type": "string" },
+        "instructor": { "type": "string" },
+        "duration": { "type": "string" },
+        "level": { "type": "string" },
+        "lessonsCount": { "type": "number" }
+      },
+      "required": ["id", "categoryId", "title", "description", "image", "instructor", "duration", "level", "lessonsCount"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "A single lesson belonging to a specific course inside our educational system",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "courseId": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string" },
+        "duration": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "pdfContent": { "type": "string" },
+        "slides": { "type": "array" },
+        "quizQuestions": { "type": "array" }
+      },
+      "required": ["id", "courseId", "title", "type", "duration"]
+    },
+    "User": {
+      "title": "User",
+      "description": "The user entity within the ecosystem representing an admin or student",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "LessonProgress": {
+      "title": "LessonProgress",
+      "description": "Completion markers for lessons watched and completed",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "courseId": { "type": "string" },
+        "lessonId": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "completedAt": { "type": "string" }
+      },
+      "required": ["userId", "courseId", "lessonId", "completed"]
+    },
+    "Certificate": {
+      "title": "Certificate",
+      "description": "The generated and issued competency certificate upon graduation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "courseId": { "type": "string" },
+        "userName": { "type": "string" },
+        "courseTitle": { "type": "string" },
+        "issueDate": { "type": "string" },
+        "grade": { "type": "number" },
+        "certificateCode": { "type": "string" }
+      },
+      "required": ["id", "userId", "courseId", "userName", "courseTitle", "issueDate", "grade", "certificateCode"]
+    }
+  },
+  "firestore": {
+    "categories": {
+      "schema": "Category",
+      "description": "General training categories of the Gulf academy center"
+    },
+    "courses": {
+      "schema": "Course",
+      "description": "Educational training courses and diplomas"
+    },
+    "lessons": {
+      "schema": "Lesson",
+      "description": "Collection of all video, pdf, slides, or quiz lessons categorized by courseId"
+    },
+    "users": {
+      "schema": "User",
+      "description": "Academy users, admins, and students"
+    },
+    "progress": {
+      "schema": "LessonProgress",
+      "description": "Lesson progress records tracked for course percent calculation"
+    },
+    "certificates": {
+      "schema": "Certificate",
+      "description": "Earned graduation certificates"
+    }
+  }
+}

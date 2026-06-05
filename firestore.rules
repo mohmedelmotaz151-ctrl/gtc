@@ -1,0 +1,102 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Primitives
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Entity validator logic helpers
+    function isValidCategory(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 200
+        && data.image is string && data.image.size() <= 1000
+        && data.iconName is string && data.iconName.size() <= 100;
+    }
+
+    function isValidCourse(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.categoryId is string && data.categoryId.size() <= 128
+        && data.title is string && data.title.size() <= 300
+        && data.description is string && data.description.size() <= 3000
+        && data.image is string && data.image.size() <= 1000
+        && data.instructor is string && data.instructor.size() <= 200
+        && data.duration is string && data.duration.size() <= 100
+        && data.level is string && data.level.size() <= 100
+        && data.lessonsCount is number;
+    }
+
+    function isValidLesson(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.courseId is string && data.courseId.size() <= 128
+        && data.title is string && data.title.size() <= 300
+        && data.type is string && data.type.size() <= 50
+        && data.duration is string && data.duration.size() <= 100;
+    }
+
+    function isValidUser(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 200
+        && data.email is string && data.email.size() <= 200
+        && data.role is string && (data.role == 'admin' || data.role == 'student');
+    }
+
+    function isValidProgress(data) {
+      return data.userId is string && data.userId.size() <= 128
+        && data.courseId is string && data.courseId.size() <= 128
+        && data.lessonId is string && data.lessonId.size() <= 128
+        && data.completed is bool;
+    }
+
+    // Standard Certificate validator
+    function isValidCertificate(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.courseId is string && data.courseId.size() <= 128
+        && data.userName is string && data.userName.size() <= 200
+        && data.courseTitle is string && data.courseTitle.size() <= 300
+        && data.issueDate is string && data.issueDate.size() <= 100
+        && data.grade is number
+        && data.certificateCode is string && data.certificateCode.size() <= 200;
+    }
+
+    // Matched blocks for each collection
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isValidId(categoryId) && isValidCategory(request.resource.data);
+    }
+
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if isValidId(courseId) && isValidCourse(request.resource.data);
+    }
+
+    match /lessons/{lessonId} {
+      allow read: if true;
+      allow write: if isValidId(lessonId) && isValidLesson(request.resource.data);
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isValidId(userId) && isValidUser(request.resource.data);
+    }
+
+    match /progress/{progressId} {
+      allow read: if true;
+      allow write: if isValidId(progressId) && isValidProgress(request.resource.data);
+      allow delete: if true;
+    }
+
+    match /certificates/{certificateId} {
+      allow read: if true;
+      allow write: if isValidId(certificateId) && isValidCertificate(request.resource.data);
+    }
+  }
+}
