@@ -11,9 +11,34 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // Load environment variables
 dotenv.config();
+
+// Lazy client setup for Cloudflare R2 S3 compatibility
+let r2Client: S3Client | null = null;
+function getR2Client(): S3Client {
+  if (!r2Client) {
+    const accountId = process.env.R2_ACCOUNT_ID;
+    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+
+    if (!accountId || !accessKeyId || !secretAccessKey) {
+      throw new Error('بيانات الاتصال بـ Cloudflare R2 ناقصة أو غير مُعرّفة في متغيرات البيئة.');
+    }
+
+    r2Client = new S3Client({
+      region: 'auto',
+      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
+      },
+    });
+  }
+  return r2Client;
+}
 
 const app = express();
 const PORT = 3000;
@@ -74,6 +99,9 @@ loadTrainingPrograms();
 // Body parsers
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
+
+// Express route for static files under assets/ (useful for fallback media and uploaded avatars)
+app.use('/assets', express.static(path.join(process.cwd(), 'assets')));
 
 // Setup multer for memory storage file uploads
 const memoryStorage = multer.memoryStorage();
@@ -163,33 +191,39 @@ app.get('/api/cloudinary/status', (req, res) => {
   });
 });
 
-// API endpoint for Media file uploading (Images and Videos) to Cloudinary
+// API endpoint for Media file uploading (with intelligent routing for videos <= 15MB to Cloudinary, and > 15MB to Cloudflare R2)
 app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'الرجاء اختيار ملف لرفعه.' });
     }
 
-    console.log(`Received file for upload to Cloudinary: ${req.file.originalname} (${req.file.mimetype})`);
+    const isVideo = req.file.mimetype.startsWith('video/') || 
+                    req.file.originalname.endsWith('.mp4') || 
+                    req.file.originalname.endsWith('.mov') || 
+                    req.file.originalname.endsWith('.avi');
+    const fileSize = req.file.size;
+    const limit15MB = 15 * 1024 * 1024;
 
-    // Determine safe resource_type dynamically (video vs image vs auto)
-    let resourceType: 'image' | 'video' | 'raw' | 'auto' = 'auto';
-    if (req.file.mimetype.startsWith('video/')) {
-      resourceType = 'video';
-    } else if (req.file.mimetype.startsWith('image/')) {
-      resourceType = 'image';
-    } else {
-      resourceType = 'raw';
-    }
+    console.log(`Received file for upload: ${req.file.originalname} (${req.file.mimetype}), Size: ${fileSize} bytes`);
 
-    // Convert Buffer to steam upload
-    const uploadPromise = () => {
+    // Dynamic resource type identifier for Cloudinary backend api
+    const uploadToCloudinary = (fileBuffer: Buffer, mimetype: string, originalname: string) => {
+      let resourceType: 'image' | 'video' | 'raw' | 'auto' = 'auto';
+      if (mimetype.startsWith('video/')) {
+        resourceType = 'video';
+      } else if (mimetype.startsWith('image/')) {
+        resourceType = 'image';
+      } else {
+        resourceType = 'raw';
+      }
+
       return new Promise<any>((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
             folder: 'gcc_academy_media',
             resource_type: resourceType,
-            filename_override: req.file?.originalname,
+            filename_override: originalname,
             use_filename: true
           },
           (error, result) => {
@@ -201,25 +235,106 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
             }
           }
         );
-        uploadStream.end(req.file?.buffer);
+        uploadStream.end(fileBuffer);
       });
     };
 
-    const cloudinaryResult = await uploadPromise();
-    console.log('Cloudinary upload success. URL:', cloudinaryResult.secure_url);
+    // Routing Logic to satisfy Cloudflare R2 requirement:
+    if (isVideo && fileSize > limit15MB) {
+      console.log(`Video sized > 15MB (${(fileSize / (1024 * 1024)).toFixed(2)} MB). Directing upload to Cloudflare R2...`);
+      try {
+        const client = getR2Client();
+        const bucketName = process.env.R2_BUCKET_NAME || 'gcc-academy-videos';
+        // Cleanup filenames to prevent layout-breaks or uri corruption
+        const safeName = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const key = `videos/${Date.now()}-${safeName}`;
 
-    return res.json({
-      success: true,
-      url: cloudinaryResult.secure_url,
-      resourceType: cloudinaryResult.resource_type,
-      duration: cloudinaryResult.duration,
-      format: cloudinaryResult.format,
-      publicId: cloudinaryResult.public_id
-    });
+        const uploadParams = {
+          Bucket: bucketName,
+          Key: key,
+          Body: req.file.buffer,
+          ContentType: req.file.mimetype,
+        };
+
+        // Fire PutObject command to user's Cloudflare R2 bucket
+        await client.send(new PutObjectCommand(uploadParams));
+
+        let publicUrl = process.env.R2_PUBLIC_URL || '';
+        if (!publicUrl) {
+          // Default R2 dev subdomain format as fallback
+          publicUrl = `https://pub-yourdomain.r2.dev`;
+        }
+        const baseUrl = publicUrl.endsWith('/') ? publicUrl.slice(0, -1) : publicUrl;
+        const fileUrl = `${baseUrl}/${key}`;
+
+        console.log(`Cloudflare R2 Direct Upload successful! URL: ${fileUrl}`);
+        return res.json({
+          success: true,
+          url: fileUrl,
+          provider: 'r2',
+          mimetype: req.file.mimetype,
+          size: fileSize
+        });
+
+      } catch (r2Error: any) {
+        console.warn(`Direct R2 upload failed or credentials omitted: ${r2Error.message}. Escalating fallback...`);
+        // Fallback Option 1: Try Cloudinary anyway (some subscriptions allow higher limits)
+        try {
+          console.log(`Retrying via Cloudinary backup upload...`);
+          const cloudinaryResult = await uploadToCloudinary(req.file.buffer, req.file.mimetype, req.file.originalname);
+          console.log(`Cloudinary backup upload success! URL: ${cloudinaryResult.secure_url}`);
+          return res.json({
+            success: true,
+            url: cloudinaryResult.secure_url,
+            provider: 'cloudinary_fallback',
+            mimetype: req.file.mimetype,
+            size: fileSize
+          });
+        } catch (clError: any) {
+          // Fallback Option 2: Final secure sandbox fallback - write local static file under assets/uploads
+          console.log(`Cloudinary also fails: ${clError.message}. Saving as local dev static asset...`);
+          const localDir = path.join(process.cwd(), 'assets', 'uploads');
+          if (!fs.existsSync(localDir)) {
+            fs.mkdirSync(localDir, { recursive: true });
+          }
+          const localSafeName = `${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const localPath = path.join(localDir, localSafeName);
+          fs.writeFileSync(localPath, req.file.buffer);
+
+          const appUrl = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+          const localUrl = `${appUrl}/assets/uploads/${localSafeName}`;
+          console.log(`Local dev static backup saved. URL: ${localUrl}`);
+
+          return res.json({
+            success: true,
+            url: localUrl,
+            provider: 'local_dev_fallback',
+            mimetype: req.file.mimetype,
+            size: fileSize
+          });
+        }
+      }
+    } else {
+      // If ≤ 15MB or it is not a video, upload directly to Cloudinary
+      console.log(`Routing file up to Cloudinary (either non-video or video <= 15MB)...`);
+      const cloudinaryResult = await uploadToCloudinary(req.file.buffer, req.file.mimetype, req.file.originalname);
+      console.log('Cloudinary upload success. URL:', cloudinaryResult.secure_url);
+
+      return res.json({
+        success: true,
+        url: cloudinaryResult.secure_url,
+        provider: 'cloudinary',
+        resourceType: cloudinaryResult.resource_type,
+        duration: cloudinaryResult.duration,
+        format: cloudinaryResult.format,
+        publicId: cloudinaryResult.public_id,
+        size: fileSize
+      });
+    }
 
   } catch (err: any) {
-    console.error('Internal file upload failure:', err);
-    return res.status(500).json({ error: 'وقع خطأ أثناء رفع الملف إلى السيرفر السحابي.', details: err.message });
+    console.error('Critical upload handler generic exception:', err);
+    return res.status(500).json({ error: 'وقع خطأ أثناء معالجة أو رفع الملف للسحابة.', details: err.message });
   }
 });
 
@@ -280,6 +395,19 @@ app.post('/api/training-data', async (req, res) => {
     console.error('Critical save training-data exception:', err);
     return res.status(500).json({ error: 'فشل في حفظ البرامج التدريبية.', details: err.message });
   }
+});
+
+// JSON error handling middleware for API routes to catch upload limitations and other errors
+app.use('/api', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('[API Global Error Catch]:', err);
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      error: 'حجم الملف المرفوع كبير جداً ويتجاوز الحدود المسموحة (الحد الأقصى هو 100 ميجابايت).'
+    });
+  }
+  res.status(err.status || 500).json({
+    error: err.message || 'عذراً، حدث خطأ داخلي في معالجة طلبك.'
+  });
 });
 
 // Start our full-stack Express server with Vite Dev middleware or static files serving

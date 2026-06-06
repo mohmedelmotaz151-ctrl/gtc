@@ -27,7 +27,8 @@ import {
   ZoomOut,
   Sliders,
   Bookmark,
-  Share2
+  Share2,
+  Search
 } from 'lucide-react';
 import { Course, Lesson, QuizQuestion, Certificate } from '../types';
 
@@ -57,11 +58,22 @@ export default function InteractivePlayer({
 
   // States
   const [activeLessonIndex, setActiveLessonIndex] = useState(0);
+  const [lessonSearchQuery, setLessonSearchQuery] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [videoProgress, setVideoProgress] = useState(0); // 0 to 100
   const [pdfZoom, setPdfZoom] = useState(100); // percentage
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+
+  // Filter lessons based on inner query
+  const filteredLessons = React.useMemo(() => {
+    if (!lessonSearchQuery.trim()) return lessons;
+    const query = lessonSearchQuery.toLowerCase().trim();
+    return lessons.filter(l => 
+      l.title.toLowerCase().includes(query) || 
+      (l.description && l.description.toLowerCase().includes(query))
+    );
+  }, [lessons, lessonSearchQuery]);
   
   // Lesson Quiz State
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
@@ -982,7 +994,7 @@ export default function InteractivePlayer({
 
               {/* STUNNING CERTIFICATE BOARD */}
               <div 
-                className="mx-auto max-w-2xl bg-[#faf9f6] border-[14px] border-double border-amber-950 rounded-2xl p-6 sm:p-10 text-slate-900 text-right font-sans relative shadow-md select-none print:m-0 print:border-8" 
+                className="mx-auto max-w-2xl bg-[#faf9f6] border-[14px] border-double border-amber-955 rounded-2xl p-6 sm:p-10 text-slate-900 text-right font-sans relative shadow-md select-none print:m-0 print:border-8" 
                 id="printable-gcc-certificate"
               >
                 {/* Certificate Background Elements (Print safe) */}
@@ -998,7 +1010,7 @@ export default function InteractivePlayer({
                     <span className="font-extrabold text-sm sm:text-base text-amber-950">المركز الخليجي المشترك للتدريب والتعليم والتشغيل</span>
                   </div>
 
-                  <h2 className="text-2xl sm:text-3xl font-black text-amber-950 drop-shadow-sm font-sans tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-black text-amber-955 drop-shadow-sm font-sans tracking-tight">
                     شهادة إتمام برنامج تدريبي
                   </h2>
                   
@@ -1041,7 +1053,7 @@ export default function InteractivePlayer({
               <div className="flex items-center justify-center gap-3">
                 <button
                   onClick={handlePrintCertificate}
-                  className="bg-slate-900 hover:bg-slate-800 text-amber-400 font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all"
+                  className="bg-slate-900 hover:bg-slate-800 text-amber-400 font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
                   id="print-cert-btn"
                 >
                   <Printer className="h-4 w-4 shrink-0" />
@@ -1053,7 +1065,7 @@ export default function InteractivePlayer({
                     navigator.clipboard.writeText(`${window.location.origin}/verify/${certificate.certificateCode}`);
                     alert('تم نسخ رابط التقصي للشهادة! يمكنك مشاركته مع أصحاب العمل.');
                   }}
-                  className="bg-white hover:bg-slate-50 border border-slate-250 text-slate-700 font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-all"
+                  className="bg-white hover:bg-slate-50 border border-slate-250 text-slate-700 font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-all cursor-pointer"
                   id="share-cert-btn"
                 >
                   <Share2 className="h-4 w-4 shrink-0 text-slate-400" />
@@ -1066,7 +1078,7 @@ export default function InteractivePlayer({
         </div>
 
         {/* Right Column - Lesson Playlist & Sidebar (Lg: 4 cols) */}
-        <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200 shadow-md p-5 text-right space-y-6" id="player-playlist">
+        <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200 shadow-md p-5 text-right space-y-5" id="player-playlist">
           <div>
             <h3 className="font-extrabold text-slate-900 text-base leading-tight mb-1">
               مفردات ومحاضرات المسار
@@ -1074,70 +1086,101 @@ export default function InteractivePlayer({
             <p className="text-xs text-slate-500 font-medium">اختر المحاضرة المطلوبة لبدء التعلم والتطبيق</p>
           </div>
 
+          {/* Sub-search bar inside course content */}
+          <div className="relative" id="lesson-inner-search-box">
+            <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+              <Search className="h-4 w-4" />
+            </span>
+            <input
+              type="text"
+              value={lessonSearchQuery}
+              onChange={(e) => setLessonSearchQuery(e.target.value)}
+              placeholder="البحث عن محاضرة أو موضوع في الكورس..."
+              className="w-full bg-slate-50 border border-slate-200 py-2.5 pr-9 pl-8 rounded-xl text-xs text-right focus:outline-none focus:border-amber-500 text-slate-900 font-sans font-medium"
+            />
+            {lessonSearchQuery && (
+              <button
+                onClick={() => setLessonSearchQuery('')}
+                className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer font-bold"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
           {/* Playlist items links list */}
-          <div className="space-y-2.5" id="lessons-list">
-            {lessons.map((lesson, idx) => {
-              const isActive = idx === activeLessonIndex;
-              const isCompleted = progress.has(lesson.id);
+          <div className="space-y-2.5 max-h-[480px] overflow-y-auto pr-1" id="lessons-list">
+            {filteredLessons.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 text-xs border border-dashed border-slate-200 rounded-2xl" id="no-lessons-found">
+                لا توجد محاضرات تطابق بحثك الحالي.
+              </div>
+            ) : (
+              filteredLessons.map((lesson) => {
+                const originalIndex = lessons.findIndex(l => l.id === lesson.id);
+                const isActive = originalIndex === activeLessonIndex;
+                const isCompleted = progress.has(lesson.id);
 
-              return (
-                <button
-                  key={lesson.id}
-                  onClick={() => {
-                    setShowFinalExam(false);
-                    setActiveLessonIndex(idx);
-                  }}
-                  className={`w-full p-3.5 rounded-2xl border transition-all text-right flex items-center gap-3 cursor-pointer group ${
-                    isActive
-                      ? 'bg-slate-900 border-slate-900 text-white shadow-md rounded-2xl'
-                      : 'bg-white hover:bg-slate-50 border-slate-200/80 text-slate-700'
-                  }`}
-                  id={`lesson-playlist-item-${lesson.id}`}
-                >
-                  {/* Icon status circle */}
-                  <div className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
-                    isActive 
-                      ? 'bg-amber-500 text-slate-950 border-amber-400' 
-                      : isCompleted 
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
-                        : 'bg-slate-50 text-slate-400 border-slate-200'
-                  }`}>
-                    {isCompleted ? (
-                      <Check className="h-4.5 w-4.5 stroke-[2.5]" />
-                    ) : (
-                      <span>{idx + 1}</span>
-                    )}
-                  </div>
-
-                  {/* Lecture brief info */}
-                  <div className="flex-1 min-w-0">
-                    <h4 className={`text-xs font-bold truncate ${isActive ? 'text-amber-400 font-extrabold' : 'text-slate-800'}`}>
-                      {lesson.title.replace(/محاضرة \d+: /, '')}
-                    </h4>
-                    
-                    <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400 font-medium">
-                      <span className="flex items-center gap-1">
-                        {lesson.type === 'video' && <Video className="h-3 w-3 shrink-0" />}
-                        {lesson.type === 'presentation' && <BookOpen className="h-3 w-3 shrink-0" />}
-                        {lesson.type === 'pdf' && <FileText className="h-3 w-3 shrink-0" />}
-                        {lesson.type === 'quiz' && <HelpCircle className="h-3 w-3 shrink-0" />}
-                        
-                        <span>
-                          {lesson.type === 'video' ? 'فيديو' : lesson.type === 'pdf' ? 'ملف PDF' : lesson.type === 'presentation' ? 'عرض تقدمي' : 'اختبار'}
-                        </span>
-                      </span>
-                      <span>•</span>
-                      <span>{lesson.duration}</span>
+                return (
+                  <button
+                    key={lesson.id}
+                    onClick={() => {
+                      setShowFinalExam(false);
+                      if (originalIndex !== -1) {
+                        setActiveLessonIndex(originalIndex);
+                      }
+                    }}
+                    className={`w-full p-3.5 rounded-2xl border transition-all text-right flex items-center gap-3 cursor-pointer group ${
+                      isActive
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-md'
+                        : 'bg-white hover:bg-slate-50 border-slate-200/85 text-slate-700'
+                    }`}
+                    id={`lesson-playlist-item-${lesson.id}`}
+                  >
+                    {/* Icon status circle */}
+                    <div className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                      isActive 
+                        ? 'bg-amber-500 text-slate-950 border-amber-400' 
+                        : isCompleted 
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                          : 'bg-slate-50 text-slate-400 border-slate-200'
+                    }`}>
+                      {isCompleted ? (
+                        <Check className="h-4.5 w-4.5 stroke-[2.5]" />
+                      ) : (
+                        <span>{originalIndex + 1}</span>
+                      )}
                     </div>
-                  </div>
 
-                  {/* Circle checked status representation */}
-                  {isCompleted && !isActive && (
-                    <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500 shrink-0 hidden sm:block" />
-                  )}
-                </button>
-              );
-            })}
+                    {/* Lecture brief info */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className={`text-xs font-bold truncate ${isActive ? 'text-amber-400 font-black' : 'text-slate-800'}`}>
+                        {lesson.title.replace(/محاضرة \d+: /, '')}
+                      </h4>
+                      
+                      <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400 font-medium">
+                        <span className="flex items-center gap-1">
+                          {lesson.type === 'video' && <Video className="h-3 w-3 shrink-0" />}
+                          {lesson.type === 'presentation' && <BookOpen className="h-3 w-3 shrink-0" />}
+                          {lesson.type === 'pdf' && <FileText className="h-3 w-3 shrink-0" />}
+                          {lesson.type === 'quiz' && <HelpCircle className="h-3 w-3 shrink-0" />}
+                          
+                          <span>
+                            {lesson.type === 'video' ? 'فيديو' : lesson.type === 'pdf' ? 'ملف PDF' : lesson.type === 'presentation' ? 'عرض تقدمي' : 'اختبار'}
+                          </span>
+                        </span>
+                        <span>•</span>
+                        <span>{lesson.duration}</span>
+                      </div>
+                    </div>
+
+                    {/* Circle checked status representation */}
+                    {isCompleted && !isActive && (
+                      <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500 shrink-0 hidden sm:block" />
+                    )}
+                  </button>
+                );
+              })
+            )}
           </div>
 
           {/* Exam Unlock Area (Shows at bottom of list) */}

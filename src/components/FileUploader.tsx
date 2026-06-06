@@ -46,6 +46,20 @@ export default function FileUploader({
     setUploadedUrl(null);
     setFileName(file.name);
 
+    // Limit check: up to 100MB for videos (for R2 upload route) and 15MB for other files
+    const isVideo = file.type.startsWith('video/') || file.name.endsWith('.mp4') || file.name.endsWith('.mov') || file.name.endsWith('.avi');
+    const maxSizeLimit = isVideo ? 100 * 1024 * 1024 : 15 * 1024 * 1024;
+    
+    if (file.size > maxSizeLimit) {
+      setUploadError(
+        isVideo 
+          ? 'حجم الفيديو المرفوع كبير جداً ويتجاوز الحدود المسموحة (الحد الأقصى هو 100 ميجابايت).'
+          : 'حجم الملف المرفوع كبير جداً ويتجاوز الحدود المسموحة لهذه الصيغة (الحد الأقصى هو 15 ميجابايت).'
+      );
+      setIsUploading(false);
+      return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
 
@@ -56,8 +70,24 @@ export default function FileUploader({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'فشل في رفع الملف إلى سيرفر كلويديناري العام');
+        let errorMessage = 'فشل في رفع الملف إلى السيرفر.';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } else {
+            const text = await response.text();
+            if (response.status === 413) {
+              errorMessage = 'حجم الملف المرفوع كبير جداً ويتجاوز حدود شبكة الرفع المسموح بها (الحد الأقصى 100 ميجابايت للفيديو و15 ميجابايت للمستندات).';
+            } else {
+              errorMessage = `خطأ في السيرفر (${response.status}): ${text.slice(0, 80)}`;
+            }
+          }
+        } catch (e) {
+          errorMessage = `فشل الرفع برمز الاستجابة (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -68,7 +98,7 @@ export default function FileUploader({
         throw new Error('لم يرجع السيرفر رابطاً صالحاً.');
       }
     } catch (err: any) {
-      console.error('Upload handler error:', err);
+      console.warn('Upload handler handled warning:', err.message || err);
       setUploadError(err.message || 'وقع عطل أثناء استدعاء سيرفر الرفع.');
     } finally {
       setIsUploading(false);
@@ -133,7 +163,13 @@ export default function FileUploader({
         ) : uploadedUrl ? (
           <div className="flex flex-col items-center space-y-2 text-emerald-600">
             <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-            <p className="text-xs font-extrabold text-emerald-750">تم الرفع بنجاح وحفظه على Cloudinary!</p>
+            <p className="text-xs font-extrabold text-emerald-750">
+              {uploadedUrl.includes('cloudinary') 
+                ? 'تم الرفع بنجاح وحفظه على Cloudinary!' 
+                : (uploadedUrl.includes('r2.dev') || uploadedUrl.includes('r2.cloudflarestorage.com') || uploadedUrl.includes('r2'))
+                ? 'تم الرفع بنجاح وتأمينه في Cloudflare R2!' 
+                : 'تم الرفع بنجاح وتوجيهه للنظام السحابي!'}
+            </p>
             <span className="text-[10px] text-slate-500 max-w-[280px] break-all truncate underline">{uploadedUrl}</span>
             <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black mt-1">
               جاهز للاستخدام
