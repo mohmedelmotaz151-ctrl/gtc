@@ -5,7 +5,7 @@
 
 import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
-import { Category, Course, Lesson, User as UserType, LessonProgress, Certificate } from '../types';
+import { Category, Course, Lesson, User as UserType, LessonProgress, Certificate, NotificationLog } from '../types';
 
 // ==========================================
 // CATEGORIES OPERATIONS
@@ -225,6 +225,34 @@ export async function saveCertificateToDb(cert: Certificate): Promise<void> {
   const docPath = `certificates/${cert.id}`;
   try {
     await setDoc(doc(db, 'certificates', cert.id), cert);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, docPath);
+  }
+}
+
+// ==========================================
+// NOTIFICATIONS OPERATIONS
+// ==========================================
+
+export async function fetchNotificationsFromDb(): Promise<NotificationLog[]> {
+  const colPath = 'notifications';
+  try {
+    const snapshot = await getDocs(collection(db, colPath));
+    const list: NotificationLog[] = [];
+    snapshot.forEach(d => {
+      list.push(d.data() as NotificationLog);
+    });
+    return list;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.GET, colPath);
+    return [];
+  }
+}
+
+export async function saveNotificationToDb(notification: NotificationLog): Promise<void> {
+  const docPath = `notifications/${notification.id}`;
+  try {
+    await setDoc(doc(db, 'notifications', notification.id), notification);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, docPath);
   }

@@ -63,6 +63,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import InteractivePlayer from './components/InteractivePlayer';
 import AdminDashboard from './components/AdminDashboard';
+import UnregisteredStudentContact from './components/UnregisteredStudentContact';
 
 // Set up initial state keys in LocalStorage
 const LOCAL_CAT_KEY = 'gcc_categories';
@@ -86,6 +87,7 @@ export default function App() {
 
   // Layout states
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
+  const [unregisteredCourse, setUnregisteredCourse] = useState<Course | null>(null);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdminView, setIsAdminView] = useState(false);
@@ -172,26 +174,71 @@ export default function App() {
     // Users
     const initialUsers: UserType[] = [
       { id: 'usr-1', name: 'أ. د. عمر بن عبد العزيز', email: 'admin@gcc.com', phone: '0500112233', role: 'admin' },
-      { id: 'usr-2', name: 'سلمان الشمري', email: 'salman@student.com', phone: '0555987654', role: 'student' }
+      { id: 'usr-2', name: 'سلمان الشمري', email: 'salman@student.com', phone: '0555987654', role: 'student', assignedCourses: ['course-safety-1'] }
     ];
-    const localUsers = localStorage.getItem(LOCAL_USR_KEY);
-    if (localUsers) {
-      setUsers(JSON.parse(localUsers));
-    } else {
-      setUsers(initialUsers);
-      localStorage.setItem(LOCAL_USR_KEY, JSON.stringify(initialUsers));
-    }
 
-    // Current User
-    const localUser = localStorage.getItem(LOCAL_CURR_USR_KEY);
-    if (localUser) {
-      setCurrentUser(JSON.parse(localUser));
-    } else {
-      // Auto-log in a student payload for quick assessment!
-      const defaultUser = { id: 'usr-2', name: 'سلمان الشمري', email: 'salman@student.com', phone: '0555987654', role: 'student' };
-      setCurrentUser(defaultUser);
-      localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(defaultUser));
-    }
+    const loadUsers = async () => {
+      try {
+        let dbUsers = await fetchUsersFromDb();
+        if (dbUsers.length === 0) {
+          console.log("Seeding initial users to Firestore database...");
+          for (const u of initialUsers) {
+            await saveUserToDb(u);
+          }
+          dbUsers = initialUsers;
+        }
+        setUsers(dbUsers);
+        localStorage.setItem(LOCAL_USR_KEY, JSON.stringify(dbUsers));
+
+        // Hydrate current active user
+        const localUser = localStorage.getItem(LOCAL_CURR_USR_KEY);
+        if (localUser && localUser !== 'null') {
+          const parsed = JSON.parse(localUser);
+          if (parsed && typeof parsed === 'object' && parsed.id) {
+            const parsedEmail = parsed.email ? parsed.email.toLowerCase() : '';
+            const found = dbUsers.find(u => u.id === parsed.id || (parsedEmail && u.email.toLowerCase() === parsedEmail));
+            if (found) {
+              setCurrentUser(found);
+              localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(found));
+            } else {
+              setCurrentUser(parsed);
+            }
+          } else {
+            // Auto log in student
+            const defaultUser = dbUsers.find(u => u.id === 'usr-2') || dbUsers[0];
+            setCurrentUser(defaultUser);
+            localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(defaultUser));
+          }
+        } else {
+          // Auto log in student
+          const defaultUser = dbUsers.find(u => u.id === 'usr-2') || dbUsers[0];
+          setCurrentUser(defaultUser);
+          localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(defaultUser));
+        }
+      } catch (err) {
+        console.error("Error loading users:", err);
+        const localUsers = localStorage.getItem(LOCAL_USR_KEY);
+        const loadedUsers = localUsers ? JSON.parse(localUsers) : initialUsers;
+        setUsers(loadedUsers);
+
+        const localUser = localStorage.getItem(LOCAL_CURR_USR_KEY);
+        if (localUser && localUser !== 'null') {
+          const parsed = JSON.parse(localUser);
+          if (parsed && typeof parsed === 'object') {
+            setCurrentUser(parsed);
+          } else {
+            const defaultUser = loadedUsers.find((u: any) => u.id === 'usr-2') || loadedUsers[0];
+            setCurrentUser(defaultUser);
+            localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(defaultUser));
+          }
+        } else {
+          const defaultUser = loadedUsers.find((u: any) => u.id === 'usr-2') || loadedUsers[0];
+          setCurrentUser(defaultUser);
+          localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(defaultUser));
+        }
+      }
+    };
+    loadUsers();
 
     // Progress
     const localPrg = localStorage.getItem(LOCAL_PRG_KEY);
@@ -493,8 +540,30 @@ export default function App() {
     deleteCategoryFromDb(catId);
   };
 
+  const handleStartStudyCourse = (course: Course) => {
+    const isEnrolled = currentUser && (
+      currentUser.role === 'admin' || 
+      (currentUser.role === 'student' && currentUser.assignedCourses?.includes(course.id))
+    );
+    if (isEnrolled) {
+      setActiveCourse(course);
+      setUnregisteredCourse(null);
+    } else {
+      setUnregisteredCourse(course);
+    }
+  };
+
+  // Filter courses based on user role and assignments
+  const allowedCourses = React.useMemo(() => {
+    if (currentUser && currentUser.role === 'student') {
+      const assigned = currentUser.assignedCourses || [];
+      return courses.filter(c => assigned.includes(c.id));
+    }
+    return courses;
+  }, [courses, currentUser]);
+
   // Searching logic
-  const filteredCourses = courses.filter(c => {
+  const filteredCourses = allowedCourses.filter(c => {
     const matchesSearch = 
       c.title.includes(searchQuery) || 
       c.description.includes(searchQuery) ||
@@ -550,6 +619,7 @@ export default function App() {
         setSearchQuery={setSearchQuery}
         onNavigateHome={() => {
           setActiveCourse(null);
+          setUnregisteredCourse(null);
           setIsAdminView(false);
           setSelectedCategoryFilter(null);
         }}
@@ -567,11 +637,23 @@ export default function App() {
             courses={courses}
             lessons={lessons}
             users={users}
+            progress={progress}
             onAddCategory={handleAddCategory}
             onAddCourse={handleAddCourse}
             onAddLesson={handleAddLesson}
             onDeleteCourse={handleDeleteCourse}
             onDeleteCategory={handleDeleteCategory}
+            onSaveUsers={saveUsers}
+          />
+
+        ) : unregisteredCourse ? (
+
+          /* RENDER UNREGISTERED STUDENT CONTACT & ENROLLMENT PAGE */
+          <UnregisteredStudentContact
+            initialCourse={unregisteredCourse}
+            courses={courses}
+            onBack={() => setUnregisteredCourse(null)}
+            currentUser={currentUser}
           />
 
         ) : activeCourse ? (
@@ -691,7 +773,7 @@ export default function App() {
                   <button
                     onClick={() => {
                       // pick the most recent progress course
-                      const lastC = courses.find(c => c.id === progress[progress.length - 1].courseId) || courses[0];
+                      const lastC = allowedCourses.find(c => c.id === progress[progress.length - 1].courseId) || allowedCourses[0];
                       if (lastC) setActiveCourse(lastC);
                     }}
                     className="bg-slate-900 border border-slate-900 text-amber-500 hover:bg-slate-805 text-xs font-bold py-2 px-5 rounded-xl transition-all"
@@ -727,13 +809,13 @@ export default function App() {
                   </span>
                   <div className="text-right mt-2">
                     <span className="text-xs font-extrabold block">كافة المساقات</span>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">{courses.length} دورة جاهزة</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">{allowedCourses.length} دورة جاهزة</span>
                   </div>
                 </button>
 
                 {categories.map((cat) => {
-                  const isSelected = selectedCategoryFilter === cat.id;
-                  const catCoursesCount = courses.filter(c => c.categoryId === cat.id).length;
+                   const isSelected = selectedCategoryFilter === cat.id;
+                   const catCoursesCount = allowedCourses.filter(c => c.categoryId === cat.id).length;
 
                   return (
                     <button
@@ -855,7 +937,7 @@ export default function App() {
                             {/* Action key buttons */}
                             <div className="pt-1">
                               <button
-                                onClick={() => setActiveCourse(course)}
+                                onClick={() => handleStartStudyCourse(course)}
                                 className="w-full bg-slate-900 border border-slate-900 hover:bg-slate-805 text-white py-2.5 px-4 rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                               >
                                 <span>{completedPercentage > 0 ? 'مواصلة المذاكرة الحيوية' : 'بدء دراسة المحاضرات'}</span>

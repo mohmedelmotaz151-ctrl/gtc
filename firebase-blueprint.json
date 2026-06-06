@@ -56,7 +56,8 @@
         "name": { "type": "string" },
         "email": { "type": "string" },
         "phone": { "type": "string" },
-        "role": { "type": "string" }
+        "role": { "type": "string" },
+        "assignedCourses": { "type": "array" }
       },
       "required": ["id", "name", "email", "role"]
     },
@@ -88,6 +89,25 @@
         "certificateCode": { "type": "string" }
       },
       "required": ["id", "userId", "courseId", "userName", "courseTitle", "issueDate", "grade", "certificateCode"]
+    },
+    "NotificationLog": {
+      "title": "NotificationLog",
+      "description": "Track record of automated or customized training reminders dispatched to inactive students",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "courseId": { "type": "string" },
+        "courseTitle": { "type": "string" },
+        "sentAt": { "type": "string" },
+        "daysInactive": { "type": "number" },
+        "emailSubject": { "type": "string" },
+        "emailBody": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "userId", "userEmail", "userName", "courseId", "courseTitle", "sentAt", "daysInactive", "emailSubject", "emailBody", "status"]
     }
   },
   "firestore": {
@@ -114,6 +134,10 @@
     "certificates": {
       "schema": "Certificate",
       "description": "Earned graduation certificates"
+    },
+    "notifications": {
+      "schema": "NotificationLog",
+      "description": "Student notification logs dispatch history"
     }
   }
 }

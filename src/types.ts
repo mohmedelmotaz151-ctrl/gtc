@@ -48,6 +48,7 @@ export interface User {
   email: string;
   phone?: string;
   role: 'admin' | 'student';
+  assignedCourses?: string[];
 }
 
 export interface LessonProgress {
@@ -73,4 +74,18 @@ export interface Certificate {
   issueDate: string;
   grade: number;
   certificateCode: string;
+}
+
+export interface NotificationLog {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  courseId: string;
+  courseTitle: string;
+  sentAt: string;
+  daysInactive: number;
+  emailSubject: string;
+  emailBody: string;
+  status: 'sent' | 'pending' | 'failed';
 }

@@ -10,6 +10,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
+import { GoogleGenAI } from '@google/genai';
 
 // Load environment variables
 dotenv.config();
@@ -80,6 +81,76 @@ const uploadHandler = multer({
   storage: memoryStorage,
   limits: {
     fileSize: 100 * 1024 * 1024 // 100MB max limit to support video lecture uploads
+  }
+});
+
+// Lazy initialisation helper for Gemini API SDK
+let googleGenAIClient: GoogleGenAI | null = null;
+function getGeminiSDK(): GoogleGenAI {
+  if (!googleGenAIClient) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      throw new Error('مفتاح GEMINI_API_KEY غير متوفر في متغيرات المخدم البيئية.');
+    }
+    googleGenAIClient = new GoogleGenAI({
+      apiKey: key,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+  }
+  return googleGenAIClient;
+}
+
+// API endpoint for generating motivational student reminders in Arabic using Gemini
+app.post('/api/inactive-reminder/generate-email', async (req, res) => {
+  try {
+    const { studentName, courseTitle, daysInactive, customNote } = req.body;
+    if (!studentName || !courseTitle) {
+      return res.status(400).json({ error: 'من فضلك أدخل اسم الطالب وعنوان الدورة' });
+    }
+
+    const client = getGeminiSDK();
+    
+    const prompt = `أنت في مقام مستشار ومسؤول الدعم الطلابي الأكاديمي والتعليمي والتحفيزي في مركز الخليج للتدريب (GCC Academy).
+أنت ترسل رسالة بريد إلكتروني ودية وملهمة وحافلة بالحسن لتشجيع المتدرب "${studentName}" للعودة لمتابعة دورته التعليمية الأكاديمية "${courseTitle}" بعد انقطاع دام ${daysInactive || 7} أيام عن الدراسة أو مشاهدة المحاضرات.
+
+البريد يجب أن يكون مكتوباً باللغة العربية بأسلوب راقٍ ومهني، ودود ومحبب للقلب، ويعزز رغبته بالتعلم بذكر أهمية مهارات الدورة وكيف أن عودته ستساعده لإنهاء الدورة والحصول على الشهادة الاحترافية المعتمدة.
+${customNote ? `ملاحظة إضافية لتضمينها في البريد: ${customNote}` : ''}
+
+الرجاء إنشاء النتيجة كصيغة JSON صالحة تحتوي على حقلين:
+1. emailTitle: عنوان البريد الإلكتروني الجذاب (مثال: "اشتقنا لتواجدك معنا في دورة...").
+2. emailBody: نص البريد الكلي بفقرات منسقة بجمال وأدب.
+
+لا تذكر أي علامات أو شيفرة برمجية خارج الـ JSON.`;
+
+    const response = await client.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+      }
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    return res.json({
+      success: true,
+      emailTitle: parsed.emailTitle || `اشتقنا لنشاطك في أكاديمية الخليج! 🌟`,
+      emailBody: parsed.emailBody || `أهلاً بك متدربنا الفاضل ${studentName}، نأمل أنك بأفضل حال...`
+    });
+  } catch (err: any) {
+    console.warn('Gemini generate-email warning (falling back to beautiful static template):', err.message);
+    const mockTitle = `اشتقنا لحضورك المبهر في دورة: ${req.body.courseTitle || 'مقررك الدراسي'}! ✨`;
+    const mockBody = `أهلاً بك متدربنا العزيز ${req.body.studentName || 'الموقر'}،\n\nنأمل أنك بتمام الصحة والعافية.\n\nلقد افتقدنا حضورك الجميل وتفاعلك المتميز في "مركز الخليج للتدريب الأكاديمي"، حيث لم نسجل لك أي نشاط دراسي في دورة "${req.body.courseTitle || ''}" منذ ما يزيد عن ${req.body.daysInactive || 7} أيام كاملة.\n\nإن الشغف والالتزام هما سر النجاح الوظيفي والاحترافي. نحن نثق بقدرتك على تجاوز جميع التحديات ومواصلة رحلتك التعليمية للحصول على شهادتك المهنية المعتمدة.\n\nالدورة بانتظارك، ويمكنك دائماً استئناف المشاهدة من حيث توقفت بكل سهولة وسلاسة!\n\nمع خالص تمنياتنا لك بالتوفيق والتميز المستدام،\nإدارة المتابعة والتوجيه الأكاديمي في مركز الخليج للتدريب.`;
+    
+    return res.json({
+      success: false,
+      error: err.message,
+      emailTitle: mockTitle,
+      emailBody: mockBody
+    });
   }
 });
 
