@@ -64,6 +64,7 @@ import Footer from './components/Footer';
 import InteractivePlayer from './components/InteractivePlayer';
 import AdminDashboard from './components/AdminDashboard';
 import UnregisteredStudentContact from './components/UnregisteredStudentContact';
+import { useLanguage } from './lib/LanguageContext';
 
 // Set up initial state keys in LocalStorage
 const LOCAL_CAT_KEY = 'gcc_categories';
@@ -75,6 +76,7 @@ const LOCAL_CRT_KEY = 'gcc_certificates';
 const LOCAL_CURR_USR_KEY = 'gcc_current_user';
 
 export default function App() {
+  const { language, t, isAr } = useLanguage();
   
   // App-wide data states
   const [categories, setCategories] = useState<Category[]>([]);
@@ -669,14 +671,12 @@ export default function App() {
             certificate={currentActiveCertificate}
             onIssueCertificate={handleIssueCertificate}
           />
-
         ) : (
-          
           /* RENDER STUDENT PORTAL PAGE / COURSES GRID / HERO OVERLAY */
-          <div className="space-y-12">
+          <div className="space-y-12 block">
             
-            {/* Elegant Premium Arabic Academy Hero Banner with Slate palette */}
-            <div className="relative bg-slate-900 text-white overflow-hidden text-right border-b border-slate-800" id="hero-banner">
+            {/* Elegant Premium Academy Hero Banner */}
+            <div className={`relative bg-slate-900 text-white overflow-hidden border-b border-slate-800 ${isAr ? 'text-right' : 'text-left'}`} id="hero-banner">
               <div className="absolute inset-0 bg-radial-gradient from-slate-800/40 via-transparent to-slate-950 pointer-events-none"></div>
               <div className="absolute top-1/2 left-10 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
               
@@ -686,15 +686,15 @@ export default function App() {
                   <div className="space-y-6 max-w-xl">
                     <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/15 border border-amber-500/20 rounded-full text-xs font-bold text-amber-400">
                       <Sparkles className="h-3.5 w-3.5" />
-                      <span>الاعتماد الأكاديمي الخليجي الأحدث لعام 2026</span>
+                      <span>{t('hero_badge')}</span>
                     </div>
 
                     <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight text-white font-sans">
-                      ارتقِ بمسيرتك المهنية مع <strong className="text-amber-500 font-black">GCC center</strong>
+                      {t('hero_title')} <strong className="text-amber-500 font-black">{t('brand_name')}</strong>
                     </h1>
                     
                     <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
-                      منصة التدريب الاحترافية الأولى في الخليج العربي. نقدم برامج ودبلومات معتمدة ومحاضرات تفاعلية في الأمن والسلامة، جودة المعايير، هندسة الطيران، إدارة الحسابات، وصناعة الرموز والبرمجة.
+                      {t('hero_desc')}
                     </p>
 
                     <div className="pt-4 flex flex-wrap gap-4">
@@ -706,46 +706,46 @@ export default function App() {
                         className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-6 py-3 rounded-xl text-xs sm:text-sm font-extrabold shadow-lg hover:shadow-amber-500/10 transition-all flex items-center gap-2 cursor-pointer"
                         id="hero-explore-btn"
                       >
-                        <span>تصفح الفهرس التدريبي</span>
-                        <ArrowRight className="h-4 w-4 rotate-180" />
+                        <span>{t('hero_explore')}</span>
+                        <ArrowRight className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
                       </button>
 
                       {!currentUser && (
                         <button
                           onClick={() => setShowLoginModal(true)}
-                          className="bg-slate-800 hover:bg-slate-750 text-slate-205 border border-slate-700 font-bold px-5 py-3 rounded-xl text-xs sm:text-sm transition-all"
+                          className="bg-slate-800 hover:bg-slate-750 text-slate-205 border border-slate-700 font-bold px-5 py-3 rounded-xl text-xs sm:text-sm transition-all cursor-pointer"
                         >
-                          تأسيس حساب طلابي
+                          {t('hero_register')}
                         </button>
                       )}
                     </div>
                   </div>
 
                   {/* Graphics / Highlights Grid */}
-                  <div className="hidden lg:grid grid-cols-2 gap-4 text-right">
+                  <div className={`hidden lg:grid grid-cols-2 gap-4 ${isAr ? 'text-right' : 'text-left'}`}>
                     
                     <div className="bg-slate-850/80 border border-slate-750 p-6 rounded-2xl">
                       <ShieldCheck className="h-8 w-8 text-amber-500 mb-3" />
-                      <h4 className="font-bold text-sm text-slate-100">شهادات فورية موثقة</h4>
-                      <p className="text-xs text-slate-400 mt-1 leading-relaxed font-normal">احصل على وثيقتك الخليجية مطبوعة بجودة مذهلة بمجرد إنهاء الاختبار.</p>
+                      <h4 className="font-bold text-sm text-slate-100">{t('hero_cert_title')}</h4>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed font-normal">{t('hero_cert_desc')}</p>
                     </div>
 
                     <div className="bg-slate-850/80 border border-slate-750 p-6 rounded-2xl">
                       <Briefcase className="h-8 w-8 text-emerald-500 mb-3" />
-                      <h4 className="font-bold text-sm text-slate-100">ملاءمة سوق العمل</h4>
-                      <p className="text-xs text-slate-400 mt-1 leading-relaxed font-normal">تتحاذى المساقات مع متطلبات التوظيف ومعايير أرامكو والإعتمادات الإقليمية.</p>
+                      <h4 className="font-bold text-sm text-slate-100">{t('hero_job_title')}</h4>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed font-normal">{t('hero_job_desc')}</p>
                     </div>
 
                     <div className="bg-slate-850/80 border border-slate-750 p-6 rounded-2xl">
                       <Video className="h-8 w-8 text-indigo-500 mb-3" />
-                      <h4 className="font-bold text-sm text-slate-100">شروح وكتيبات تفاعلية</h4>
-                      <p className="text-xs text-slate-400 mt-1 leading-relaxed font-normal">تنوع فريد بين أفلام الفيديوهات، وشرائح السلايدات، وكتب الـ PDF.</p>
+                      <h4 className="font-bold text-sm text-slate-100">{t('hero_materials_title')}</h4>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed font-normal">{t('hero_materials_desc')}</p>
                     </div>
 
                     <div className="bg-slate-850/80 border border-slate-750 p-6 rounded-2xl">
                       <GraduationCap className="h-8 w-8 text-rose-500 mb-3" />
-                      <h4 className="font-bold text-sm text-slate-100">متابعة الأداء الاستباقي</h4>
-                      <p className="text-xs text-slate-400 mt-1 leading-relaxed font-normal">تتبع نسبة تصفحك والعودة لنفس مكان التوقف فوراً ومجاناً.</p>
+                      <h4 className="font-bold text-sm text-slate-100">{t('hero_progress_title')}</h4>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed font-normal">{t('hero_progress_desc')}</p>
                     </div>
 
                   </div>
@@ -757,15 +757,15 @@ export default function App() {
             {/* Resume last studied course card */}
             {currentUser && progress.length > 0 && (
               <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" id="recent-progress-box">
-                <div className="bg-white rounded-2xl border border-slate-205 p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 text-right">
+                <div className={`bg-white rounded-2xl border border-slate-205 p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 ${isAr ? 'text-right' : 'text-left'}`}>
+                  <div className={`flex items-center gap-3 ${isAr ? 'flex-row' : 'flex-row-reverse'}`}>
                     <div className="h-10 w-10 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
                       <Clock className="h-5 w-5" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-450 font-bold block">متابعة عملية التعلم</span>
+                      <span className="text-[10px] text-slate-450 font-bold block">{t('recent_resume_label')}</span>
                       <h4 className="font-extrabold text-xs sm:text-sm text-slate-900">
-                        لديك دروس معلقة بالمسارات التدريبية، تابع تقدمك لتأمين الشهادة!
+                        {t('recent_resume_desc')}
                       </h4>
                     </div>
                   </div>
@@ -776,9 +776,9 @@ export default function App() {
                       const lastC = allowedCourses.find(c => c.id === progress[progress.length - 1].courseId) || allowedCourses[0];
                       if (lastC) setActiveCourse(lastC);
                     }}
-                    className="bg-slate-900 border border-slate-900 text-amber-500 hover:bg-slate-805 text-xs font-bold py-2 px-5 rounded-xl transition-all"
+                    className="bg-slate-900 border border-slate-900 text-amber-500 hover:bg-slate-805 text-xs font-bold py-2 px-5 rounded-xl transition-all cursor-pointer"
                   >
-                    متابعة الدرس الحالي
+                    {t('recent_resume_btn')}
                   </button>
                 </div>
               </div>
@@ -786,9 +786,9 @@ export default function App() {
 
             {/* Core Section: Course Categories Filtering Tabs */}
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-6" id="categories-hub">
-              <div className="text-right">
-                <h2 className="text-lg md:text-xl font-extrabold text-slate-900 tracking-tight">أقسام التدريب والعلوم المتخصصة</h2>
-                <p className="text-xs text-slate-500 mt-0.5 font-medium">اختر الفرع التدريبي لعزل الكورسات وعرض تخصصاتها</p>
+              <div className={isAr ? 'text-right' : 'text-left'}>
+                <h2 className="text-lg md:text-xl font-extrabold text-slate-900 tracking-tight">{t('cat_title_head')}</h2>
+                <p className="text-xs text-slate-500 mt-0.5 font-medium">{t('cat_title_sub')}</p>
               </div>
 
               {/* Grid of category round selectors */}
@@ -797,43 +797,55 @@ export default function App() {
                 {/* Clear Filter button */}
                 <button
                   onClick={() => setSelectedCategoryFilter(null)}
-                  className={`p-4 rounded-2xl border text-right flex flex-col justify-between h-28 transition-all duration-300 group shadow-sm ${
+                  className={`p-4 rounded-2xl border flex flex-col justify-between h-28 transition-all duration-300 group shadow-sm ${isAr ? 'text-right' : 'text-left'} ${
                     selectedCategoryFilter === null
                       ? 'bg-slate-900 border-slate-900 text-white'
-                      : 'bg-white border-slate-200/80 text-slate-700 hover:bg-slate-50'
+                      : 'bg-white border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm'
                   }`}
                   id="cat-all-btn"
                 >
                   <span className={`p-1.5 rounded-lg shrink-0 ${selectedCategoryFilter === null ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-505'}`}>
                     <Grid className="h-5 w-5" />
                   </span>
-                  <div className="text-right mt-2">
-                    <span className="text-xs font-extrabold block">كافة المساقات</span>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">{allowedCourses.length} دورة جاهزة</span>
+                  <div className={`mt-2 ${isAr ? 'text-right' : 'text-left'}`}>
+                    <span className="text-xs font-extrabold block">{t('cat_all')}</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">{allowedCourses.length} {t('cat_all_sub')}</span>
                   </div>
                 </button>
 
                 {categories.map((cat) => {
                    const isSelected = selectedCategoryFilter === cat.id;
                    const catCoursesCount = allowedCourses.filter(c => c.categoryId === cat.id).length;
+                   // Translate category name based on language
+                   let catNameTranslated = cat.name;
+                   if (!isAr) {
+                     if (cat.name.includes('السلامة والصحة')) catNameTranslated = 'Safety & Health';
+                     else if (cat.name.includes('الطيران')) catNameTranslated = 'Aviation Systems';
+                     else if (cat.name.includes('إدارة ونظم')) catNameTranslated = 'Quality Control';
+                     else if (cat.name.includes('اللغات والاتصال')) catNameTranslated = 'Languages';
+                     else if (cat.name.includes('المحاسبة والمالية')) catNameTranslated = 'Finance & Accounts';
+                     else if (cat.name.includes('البرمجة')) catNameTranslated = 'Software Systems';
+                   } else {
+                     catNameTranslated = cat.name.replace('قسم ', '');
+                   }
 
                   return (
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategoryFilter(cat.id)}
-                      className={`p-4 rounded-2xl border text-right flex flex-col justify-between h-28 transition-all duration-300 group shadow-sm ${
+                      className={`p-4 rounded-2xl border flex flex-col justify-between h-28 transition-all duration-300 group shadow-sm ${isAr ? 'text-right' : 'text-left'} ${
                         isSelected
                           ? 'bg-slate-900 border-slate-900 text-white'
-                          : 'bg-white border-slate-205 text-slate-700 hover:bg-slate-50'
+                          : 'bg-white border-slate-205 text-slate-700 hover:bg-slate-50 shadow-sm'
                       }`}
                       id={`cat-filter-btn-${cat.id}`}
                     >
                       <span className={`p-1.5 rounded-lg shrink-0 ${isSelected ? 'bg-amber-500 text-slate-950' : 'bg-slate-105'}`}>
                         {getCategoryIcon(cat.iconName)}
                       </span>
-                      <div className="text-right mt-2">
-                        <span className="text-xs font-extrabold block leading-tight">{cat.name.replace('قسم ', '')}</span>
-                        <span className="text-[10px] text-slate-400 mt-0.5 block">{catCoursesCount} مساقات مفعلة</span>
+                      <div className={`mt-2 ${isAr ? 'text-right' : 'text-left'}`}>
+                        <span className="text-xs font-extrabold block leading-tight">{catNameTranslated}</span>
+                        <span className="text-[10px] text-slate-400 mt-0.5 block">{catCoursesCount} {t('cat_sub_active')}</span>
                       </div>
                     </button>
                   );
@@ -845,18 +857,28 @@ export default function App() {
             {/* Courses Catalog listings */}
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-6" id="academy-courses-grid">
               
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+              <div className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-slate-200 pb-4 ${isAr ? 'text-right' : 'text-left'}`}>
                 <div>
                   <h3 className="text-lg md:text-xl font-bold text-slate-950">
                     {selectedCategoryFilter 
-                      ? `البرامج المدرجة تحت: ${categories.find(c => c.id === selectedCategoryFilter)?.name || ''}`
-                      : 'الكتالوج الكامل للدبلومات والبرامج التدريبية المتاحة'
+                      ? `${t('catalog_filter_results')} ${
+                          !isAr
+                            ? categories.find(c => c.id === selectedCategoryFilter)?.name
+                                .replace('قسم السلامة والصحة المهنية', 'Occupational Safety & Health')
+                                .replace('قسم الطيران وهندسته', 'Aviation & Aerospace Engineering')
+                                .replace('قسم إدارة ونظم الجودة المعاصرة', 'Modern Quality Control Management')
+                                .replace('قسم اللغات والاتصال الدولي', 'Languages & International Communication')
+                                .replace('قسم المحاسبة والمالية للمدراء', 'Accounting & Financial Management')
+                                .replace('قسم البرمجة وتقنيات الويب', 'Programming & Web Technologies')
+                            : categories.find(c => c.id === selectedCategoryFilter)?.name || ''
+                        }`
+                      : t('catalog_all_title')
                     }
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">درجة الرعاية والتدريب مصممة لتأهيل المتدرب مباشرة للاستقلال الميداني</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{t('catalog_desc')}</p>
                 </div>
 
-                <span className="text-xs text-slate-500 font-bold">عرض {filteredCourses.length} برامج تدريبية</span>
+                <span className="text-xs text-slate-505 font-extrabold">{t('catalog_stats_prefix')} {filteredCourses.length} {t('catalog_stats_suffix')}</span>
               </div>
 
               {/* Course grid items card list */}
@@ -866,6 +888,13 @@ export default function App() {
                     const completedPercentage = getCourseProgressPercentage(course.id);
                     const isPassed = certificates.some(c => c.userId === currentUser?.id && c.courseId === course.id);
                     const courseLsnCount = lessons[course.id]?.length || 0;
+
+                    let translatedLevel = course.level;
+                    if (!isAr) {
+                      if (course.level.includes('مبتدئ')) translatedLevel = t('level_beginner');
+                      else if (course.level.includes('متوسط')) translatedLevel = t('level_intermediate');
+                      else if (course.level.includes('متقدم')) translatedLevel = t('level_advanced');
+                    }
 
                     return (
                       <div 
@@ -881,30 +910,30 @@ export default function App() {
                             referrerPolicy="no-referrer"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-550 filter brightness-95"
                           />
-                          <div className="absolute top-3 right-3 flex gap-2">
+                          <div className={`absolute top-3 ${isAr ? 'right-3' : 'left-3'} flex gap-2`}>
                             <span className="bg-slate-900/80 backdrop-blur-sm shadow-sm text-amber-500 text-[10px] font-black px-2.5 py-1 rounded-lg">
-                              {course.level}
+                              {translatedLevel}
                             </span>
                           </div>
 
                           {/* Completed percentage badge overlay */}
                           {completedPercentage > 0 && (
-                            <div className="absolute bottom-3 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 shadow">
+                            <div className={`absolute bottom-3 ${isAr ? 'left-3' : 'right-3'} bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 shadow`}>
                               <Check className="h-3 w-3" />
-                              <span>منجز {Math.min(100, completedPercentage)}%</span>
+                              <span>{t('course_percentage_done')} {Math.min(100, completedPercentage)}%</span>
                             </div>
                           )}
 
                           {isPassed && (
-                            <div className="absolute top-3 left-3 bg-yellow-500 text-slate-950 text-[9px] font-black tracking-tight px-2 py-1 rounded-lg flex items-center gap-1 shadow animate-bounce">
+                            <div className={`absolute top-3 ${isAr ? 'left-3' : 'right-3'} bg-yellow-500 text-slate-950 text-[9px] font-black tracking-tight px-2 py-1 rounded-lg flex items-center gap-1 shadow animate-bounce`}>
                               <Award className="h-3 w-3" />
-                              <span>مؤهل بالشهادة</span>
+                              <span>{t('course_qualified')}</span>
                             </div>
                           )}
                         </div>
 
                         {/* Title & Body of course details */}
-                        <div className="p-5 flex-grow flex flex-col justify-between text-right space-y-4">
+                        <div className={`p-5 flex-grow flex flex-col justify-between ${isAr ? 'text-right' : 'text-left'} space-y-4`}>
                           <div className="space-y-2">
                             <h4 className="font-extrabold text-sm sm:text-base text-slate-900 line-clamp-1 leading-snug group-hover:text-amber-600 transition-colors">
                               {course.title}
@@ -916,16 +945,16 @@ export default function App() {
 
                           <div className="pt-2 border-t border-slate-100 space-y-3">
                             {/* Instructor / Duration details row */}
-                            <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold">
-                              <span>المشرف الفني: <strong className="text-slate-800 font-bold">{course.instructor}</strong></span>
-                              <span>المدة المقررة: {course.duration}</span>
+                            <div className={`flex items-center justify-between text-[11px] text-slate-500 font-semibold ${isAr ? 'flex-row' : 'flex-row-reverse'}`}>
+                              <span>{t('course_instructor')}: <strong className="text-slate-800 font-bold">{course.instructor}</strong></span>
+                              <span>{t('course_duration')}: {course.duration}</span>
                             </div>
 
                             {/* Completed Progress bar indicator for index feed */}
                             {completedPercentage > 0 && (
                               <div className="space-y-1">
                                 <div className="flex justify-between items-center text-[10px]">
-                                  <span className="text-slate-400">تقدم دراستك</span>
+                                  <span className="text-slate-400">{t('course_enrolled_progress')}</span>
                                   <span className="text-emerald-600 font-bold">{Math.min(100, completedPercentage)}%</span>
                                 </div>
                                 <div className="w-full bg-slate-100 rounded-full h-1">
@@ -938,10 +967,10 @@ export default function App() {
                             <div className="pt-1">
                               <button
                                 onClick={() => handleStartStudyCourse(course)}
-                                className="w-full bg-slate-900 border border-slate-900 hover:bg-slate-805 text-white py-2.5 px-4 rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                                className="w-full bg-slate-900 border border-slate-900 hover:bg-slate-805 text-white py-2.5 px-4 rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
                               >
-                                <span>{completedPercentage > 0 ? 'مواصلة المذاكرة الحيوية' : 'بدء دراسة المحاضرات'}</span>
-                                <ChevronLeft className="h-4 w-4 shrink-0 text-amber-500" />
+                                <span>{completedPercentage > 0 ? t('course_btn_resume') : t('course_btn_start')}</span>
+                                <ChevronLeft className={`h-4 w-4 shrink-0 text-amber-500 ${isAr ? '' : 'rotate-180'}`} />
                               </button>
                             </div>
                           </div>
@@ -954,45 +983,45 @@ export default function App() {
               ) : (
                 <div className="text-center py-16 bg-white rounded-3xl border border-slate-200" id="blank-courses-state">
                   <FolderOpen className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                  <h4 className="font-bold text-slate-700 text-sm">عذراً، لم نجد أي مساق يطابق كلمات البحث</h4>
-                  <p className="text-xs text-slate-400 mt-1">تأكد من اختيار قسم مختلف أو كتابة كلمة مفتاحية سليمة.</p>
+                  <h4 className="font-bold text-slate-700 text-sm">{t('search_empty_title')}</h4>
+                  <p className="text-xs text-slate-400 mt-1">{t('search_empty_desc')}</p>
                 </div>
               )}
             </div>
 
             {/* Static sections: Accreditations (من نحن) inside home feed */}
             <div className="bg-white border-y border-slate-200 py-16" id="about-us-section">
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-right space-y-8">
-                <div className="max-w-2xl text-right space-y-2">
-                  <h2 className="text-xl md:text-2xl font-extrabold text-slate-950">المركز الخليجي المعتمد للتدريب والتطوير (من نحن)</h2>
+              <div className={`mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8 ${isAr ? 'text-right' : 'text-left'}`}>
+                <div className={`max-w-2xl space-y-2 ${isAr ? 'text-right' : 'text-left'}`}>
+                  <h2 className="text-xl md:text-2xl font-extrabold text-slate-950">{t('home_about_title')}</h2>
                   <p className="text-slate-500 text-xs md:text-sm font-normal leading-relaxed">
-                    تأسس المركز الخليجي المشترك GCC Center بهدف تمكين الشباب وصناع المستقبل بالخليج عبر برامج رشيقة ومعتمدة وممتازة.
+                    {t('home_about_desc')}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs sm:text-sm leading-relaxed text-slate-600 font-normal">
+                <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 text-xs sm:text-sm leading-relaxed text-slate-600 font-normal ${isAr ? 'text-right' : 'text-left'}`}>
                   <div className="space-y-2.5 bg-slate-55/60 p-5 rounded-2xl border border-slate-200/50">
                     <h4 className="font-extrabold text-slate-905 text-sm flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-amber-500"></span>
-                      <span>رؤيتنا الإستراتيجية</span>
+                      <span>{t('home_about_col1_title')}</span>
                     </h4>
-                    <p>المساهمة في بناء الكوادر المهنية والقيادية المتخصصة وفق أعلى المعايير العالمية من خلال بيئة تعليمية ذكية تجمع بين الدراسة التفاعلية النظرية والتمكين التطبيقي المالي واللوجيستي الفعال.</p>
+                    <p>{t('home_about_col1_desc')}</p>
                   </div>
 
                   <div className="space-y-2.5 bg-slate-55/60 p-5 rounded-2xl border border-slate-200/50">
                     <h4 className="font-extrabold text-slate-905 text-sm flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-amber-500"></span>
-                      <span>الاعتمادات والتراخيص</span>
+                      <span>{t('home_about_col2_title')}</span>
                     </h4>
-                    <p>برامجنا وتراخيصنا متوائمة بالكامل مع معايير الأوشا الدولية (OSHA)، الأيزو العالمي لترصيف الجودة (ISO)، ومصادقة لجان التدريب والتعليم المهني والتقني بالمملكة ودول مجلس التعاون عاملاً.</p>
+                    <p>{t('home_about_col2_desc')}</p>
                   </div>
 
                   <div className="space-y-2.5 bg-slate-55/60 p-5 rounded-2xl border border-slate-200/50">
                     <h4 className="font-extrabold text-slate-905 text-sm flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-amber-500"></span>
-                      <span>آلية دراسة الدبلوم</span>
+                      <span>{t('home_about_col3_title')}</span>
                     </h4>
-                    <p>بفضل الهيكلية الفريدة للبرامج، يمر الطالب بثلاث مراحل متوالية: التعرف والتفاعل مع المحاضرات، حل الأسئلة الفرعية للدروس، ثم التقدم للامتحان الكلي واستخراج الشهادة الخليجية الموقّعة.</p>
+                    <p>{t('home_about_col3_desc')}</p>
                   </div>
                 </div>
               </div>

@@ -13,9 +13,11 @@ import {
   Settings, 
   Menu, 
   X,
-  UserCheck
+  UserCheck,
+  Globe
 } from 'lucide-react';
 import { User as UserType } from '../types';
+import { useLanguage } from '../lib/LanguageContext';
 
 interface HeaderProps {
   currentUser: UserType | null;
@@ -43,6 +45,7 @@ export default function Header({
   onOpenAbout
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { language, setLanguage, t, isAr } = useLanguage();
 
   return (
     <header className="sticky top-0 z-40 w-full bg-slate-900 text-white shadow-md border-b border-slate-800" id="app-header">
@@ -56,10 +59,10 @@ export default function Header({
             </div>
             <div className="flex flex-col">
               <span className="font-extrabold text-xl tracking-tight text-white font-sans">
-                GCC center
+                {t('brand_name')}
               </span>
               <span className="text-[10px] text-slate-400">
-                المركز المشترك للتدريب
+                {t('brand_sub')}
               </span>
             </div>
           </div>
@@ -69,13 +72,17 @@ export default function Header({
             <div className="relative w-full">
               <input
                 type="text"
-                placeholder="ابحث عن دورة أو محاضرة..."
+                placeholder={t('search_placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl bg-slate-800/80 pl-4 pr-11 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-slate-800 border border-slate-700/50 transition-all text-right"
+                className={`w-full rounded-xl bg-slate-800/80 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-slate-800 border border-slate-700/50 transition-all ${
+                  isAr ? 'pl-4 pr-11 text-right' : 'pr-4 pl-11 text-left'
+                }`}
                 id="search-input"
               />
-              <Search className="absolute right-4 top-2.5 h-4 w-4 text-slate-400" />
+              <Search className={`absolute top-2.5 h-4 w-4 text-slate-400 ${
+                isAr ? 'right-4' : 'left-4'
+              }`} />
             </div>
           </div>
 
@@ -86,26 +93,37 @@ export default function Header({
               className={`hover:text-amber-400 transition-colors py-1 ${!isAdminView ? 'text-amber-500 border-b-2 border-amber-500' : 'text-slate-300'}`}
               id="nav-home-btn"
             >
-              الرئيسية
+              {t('nav_home')}
             </button>
             <button 
               onClick={onOpenAbout}
               className="text-slate-300 hover:text-amber-400 transition-colors py-1"
               id="nav-about-btn"
             >
-              من نحن
+              {t('nav_about')}
             </button>
             <button 
               onClick={onOpenPrivacy}
               className="text-slate-300 hover:text-amber-400 transition-colors py-1"
               id="nav-privacy-btn"
             >
-              سياسة الخصوصية
+              {t('nav_privacy')}
             </button>
           </nav>
 
           {/* Right Controls & User Info */}
           <div className="hidden md:flex items-center gap-4" id="header-user-controls">
+            {/* Language Switcher button in desktop */}
+            <button
+              onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:text-amber-400 transition-all cursor-pointer"
+              title={isAr ? 'Switch to English' : 'التحويل للعربية'}
+              id="lang-toggle-btn"
+            >
+              <Globe className="h-3.5 w-3.5 text-amber-505 shrink-0" />
+              <span>{isAr ? 'EN' : 'العربية'}</span>
+            </button>
+
             {currentUser ? (
               <div className="flex items-center gap-3">
                 {currentUser.role === 'admin' && (
@@ -116,28 +134,28 @@ export default function Header({
                         ? 'bg-amber-500 text-slate-950 hover:bg-amber-400' 
                         : 'bg-slate-800 hover:bg-slate-750 text-amber-500 border border-amber-500/20'
                     }`}
-                    title={isAdminView ? "العودة للطلاب" : "دخول الإدارة"}
+                    title={isAdminView ? t('nav_home') : t('admin_panel')}
                     id="toggle-admin-btn"
                   >
                     <Settings className="h-3.5 w-3.5" />
-                    <span>{isAdminView ? 'مشاهدة كطالب' : 'لوحة الإدارة'}</span>
+                    <span>{isAdminView ? t('view_student') : t('admin_panel')}</span>
                   </button>
                 )}
 
-                <div className="flex flex-col items-end text-xs">
+                <div className={`flex flex-col text-xs ${isAr ? 'items-end' : 'items-start'}`}>
                   <span className="font-bold text-slate-250 flex items-center gap-1">
                     {currentUser.name}
                     {currentUser.role === 'admin' ? (
-                      <span className="bg-rose-500/20 text-rose-300 text-[9px] px-1.5 py-0.5 rounded-full font-normal border border-rose-500/30">
-                        مدير النظام
+                      <span className="bg-rose-500/20 text-rose-300 text-[9px] px-1.5 py-0.5 rounded-full font-normal border border-rose-500/30 font-sans">
+                        {t('system_admin')}
                       </span>
                     ) : (
-                      <span className="bg-amber-500/20 text-amber-300 text-[9px] px-1.5 py-0.5 rounded-full font-normal border border-amber-500/30">
-                        طالب متدرب
+                      <span className="bg-amber-500/20 text-amber-300 text-[9px] px-1.5 py-0.5 rounded-full font-normal border border-amber-500/30 font-sans">
+                        {t('student_role')}
                       </span>
                     )}
                   </span>
-                  <span className="text-slate-400 text-[10px]">{currentUser.email}</span>
+                  <span className="text-slate-400 text-[10px] font-sans">{currentUser.email}</span>
                 </div>
 
                 <div className="h-9 w-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-amber-400" id="avatar">
@@ -147,7 +165,7 @@ export default function Header({
                 <button
                   onClick={onLogout}
                   className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
-                  title="تسجيل الخروج"
+                  title={t('logout')}
                   id="logout-btn"
                 >
                   <LogOut className="h-4 w-4" />
@@ -160,13 +178,23 @@ export default function Header({
                 id="login-btn-header"
               >
                 <User className="h-4 w-4" />
-                <span>تسجيل الدخول / التسجيل</span>
+                <span>{t('login_register')}</span>
               </button>
             )}
           </div>
 
           {/* Hamburger Mobile Menu */}
           <div className="md:hidden flex items-center gap-2" id="mobile-menu-control">
+            {/* Mobile language toggle switcher */}
+            <button
+              onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded bg-slate-800 text-xs font-semibold text-slate-300 border border-slate-700 hover:text-white"
+              id="mob-lang-toggle"
+            >
+              <Globe className="h-3 w-3 text-amber-500 shrink-0" />
+              <span>{isAr ? 'EN' : 'عربي'}</span>
+            </button>
+
             {currentUser && (
               <div className="h-8 w-8 rounded-full bg-slate-800 text-amber-400 flex items-center justify-center">
                 {currentUser.role === 'admin' ? <UserCheck className="h-4.5 w-4.5" /> : <GraduationCap className="h-4.5 w-4.5" />}
@@ -191,13 +219,17 @@ export default function Header({
           <div className="relative w-full" id="mobile-search">
             <input
               type="text"
-              placeholder="ابحث عن دورة أو محاضرة..."
+              placeholder={t('search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl bg-slate-800 pl-4 pr-11 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 text-right"
+              className={`w-full rounded-xl bg-slate-800 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 ${
+                isAr ? 'pl-4 pr-11 text-right' : 'pr-4 pl-11 text-left'
+              }`}
               id="mobile-search-input"
             />
-            <Search className="absolute right-4 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className={`absolute top-2.5 h-4 w-4 text-slate-400 ${
+              isAr ? 'right-4' : 'left-4'
+            }`} />
           </div>
 
           {/* Quick links */}
@@ -210,7 +242,7 @@ export default function Header({
               className="bg-slate-800 rounded-lg p-2 text-amber-400"
               id="mob-nav-home"
             >
-              الرئيسية
+              {t('nav_home')}
             </button>
             <button
               onClick={() => {
@@ -220,7 +252,7 @@ export default function Header({
               className="bg-slate-800 rounded-lg p-2 text-slate-300"
               id="mob-nav-about"
             >
-              من نحن
+              {t('nav_about')}
             </button>
             <button
               onClick={() => {
@@ -230,7 +262,7 @@ export default function Header({
               className="bg-slate-800 rounded-lg p-2 text-slate-300"
               id="mob-nav-privacy"
             >
-              الخصوصية
+              {t('nav_privacy')}
             </button>
           </div>
 
@@ -238,15 +270,15 @@ export default function Header({
           <div className="pt-2 border-t border-slate-800" id="mobile-user-panel">
             {currentUser ? (
               <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs bg-slate-850 p-2 rounded-lg">
-                  <div className="text-right">
+                <div className={`flex items-center justify-between text-xs bg-slate-850 p-2 rounded-lg ${isAr ? 'flex-row' : 'flex-row-reverse'}`}>
+                  <div className={isAr ? 'text-right' : 'text-left'}>
                     <p className="font-bold text-slate-200">{currentUser.name}</p>
-                    <p className="text-slate-400 text-[10px]">{currentUser.email}</p>
+                    <p className="text-slate-400 text-[10px] font-sans">{currentUser.email}</p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-medium font-sans ${
                     currentUser.role === 'admin' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                   }`}>
-                    {currentUser.role === 'admin' ? 'مدير' : 'طالب'}
+                    {currentUser.role === 'admin' ? t('system_admin') : t('student_role')}
                   </span>
                 </div>
 
@@ -260,7 +292,7 @@ export default function Header({
                     id="mob-toggle-admin"
                   >
                     <Settings className="h-4 w-4" />
-                    <span>{isAdminView ? 'مساق الطلاب' : 'لوحة الإدارة للتحكم'}</span>
+                    <span>{isAdminView ? t('view_student') : t('admin_panel')}</span>
                   </button>
                 )}
 
@@ -273,7 +305,7 @@ export default function Header({
                   id="mob-logout"
                 >
                   <LogOut className="h-4 w-4" />
-                  <span>تسجيل الخروج</span>
+                  <span>{t('logout')}</span>
                 </button>
               </div>
             ) : (
@@ -286,7 +318,7 @@ export default function Header({
                 id="mob-login"
               >
                 <User className="h-4 w-4" />
-                <span>تسجيل الدخول للمنصة</span>
+                <span>{t('login_register')}</span>
               </button>
             )}
           </div>
@@ -295,3 +327,4 @@ export default function Header({
     </header>
   );
 }
+
