@@ -30,7 +30,8 @@ import {
   Share2,
   Search,
   Download,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import { Course, Lesson, QuizQuestion, Certificate } from '../types';
 
@@ -90,6 +91,50 @@ export default function InteractivePlayer({
   const [examPassed, setExamPassed] = useState(false);
 
   const activeLesson = lessons[activeLessonIndex] || null;
+
+  // Blob loading state for PDF to bypass target="_blank" sandbox & reverse proxy authentication barriers
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [loadingPdfBlob, setLoadingPdfBlob] = useState(false);
+
+  useEffect(() => {
+    if (activeLesson?.type !== 'pdf' || !activeLesson?.videoUrl) {
+      setPdfBlobUrl(null);
+      setLoadingPdfBlob(false);
+      return;
+    }
+
+    let isMounted = true;
+    let createdUrl: string | null = null;
+    setLoadingPdfBlob(true);
+
+    fetch(activeLesson.videoUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Failed to load PDF asset (${response.status})`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        if (!isMounted) return;
+        const objectUrl = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+        createdUrl = objectUrl;
+        setPdfBlobUrl(objectUrl);
+        setLoadingPdfBlob(false);
+      })
+      .catch(err => {
+        console.warn('PDF blob loading caution (falling back to direct CDN link):', err);
+        if (!isMounted) return;
+        setPdfBlobUrl(activeLesson.videoUrl || null);
+        setLoadingPdfBlob(false);
+      });
+
+    return () => {
+      isMounted = false;
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [activeLesson?.id, activeLesson?.videoUrl]);
 
   // Track video mock timeline (fallback if no real video element is mounted)
   useEffect(() => {
@@ -695,26 +740,40 @@ export default function InteractivePlayer({
                           </div>
                           
                           <div className="flex items-center gap-2">
-                            <a 
-                              href={activeLesson.videoUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition-all text-[11px] shadow-sm cursor-pointer"
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                              <span>تحميل / فتح المستند بفرع مستقل</span>
-                            </a>
+                            {loadingPdfBlob ? (
+                              <div className="flex items-center gap-1.5 text-slate-500 bg-slate-100 font-bold px-4 py-2 rounded-xl text-[11px]">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
+                                <span>جاري تهيئة الملف للمعاينة والتنزيل...</span>
+                              </div>
+                            ) : (
+                              <a 
+                                href={pdfBlobUrl || activeLesson.videoUrl} 
+                                download={`${activeLesson.title}.pdf`}
+                                className="bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition-all text-[11px] shadow-sm cursor-pointer"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                                <span>تحميل مباشر للكمبيوتر / الجوال</span>
+                              </a>
+                            )}
                           </div>
                         </div>
 
-                        <div className="relative rounded-2xl border-2 border-slate-200 overflow-hidden bg-white shadow-sm h-[550px] w-full">
-                          <iframe
-                            src={`${activeLesson.videoUrl}#toolbar=1&navpanes=0&scrollbar=1`}
-                            className="w-full h-full border-0"
-                            title={activeLesson.title}
-                            referrerPolicy="no-referrer"
-                          />
-                        </div>
+                        {loadingPdfBlob ? (
+                          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-slate-200 h-[400px] bg-slate-55/40 space-y-3">
+                            <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+                            <p className="text-xs font-bold text-slate-600">جاري تأمين وتهيئة ملف المذكرة وحلها من عوائق الترخيص...</p>
+                            <span className="text-[10px] text-slate-400">يرجى الانتظار ثوانٍ معدودة</span>
+                          </div>
+                        ) : (
+                          <div className="relative rounded-2xl border-2 border-slate-200 overflow-hidden bg-white shadow-sm h-[550px] w-full">
+                            <iframe
+                              src={pdfBlobUrl ? `${pdfBlobUrl}#toolbar=1&navpanes=0&scrollbar=1` : `${activeLesson.videoUrl}#toolbar=1&navpanes=0&scrollbar=1`}
+                              className="w-full h-full border-0"
+                              title={activeLesson.title}
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="bg-amber-500/10 text-amber-800 border border-amber-500/25 rounded-2xl p-4 text-xs font-semibold text-center leading-relaxed">
