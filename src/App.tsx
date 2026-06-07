@@ -103,6 +103,7 @@ export default function App() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginName, setLoginName] = useState('');
   const [loginPhone, setLoginPhone] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   // Helper to sync updated values to backend
@@ -195,27 +196,26 @@ export default function App() {
         // Hydrate current active user
         const localUser = localStorage.getItem(LOCAL_CURR_USR_KEY);
         if (localUser && localUser !== 'null') {
-          const parsed = JSON.parse(localUser);
-          if (parsed && typeof parsed === 'object' && parsed.id) {
-            const parsedEmail = parsed.email ? parsed.email.toLowerCase() : '';
-            const found = dbUsers.find(u => u.id === parsed.id || (parsedEmail && u.email.toLowerCase() === parsedEmail));
-            if (found) {
-              setCurrentUser(found);
-              localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(found));
+          try {
+            const parsed = JSON.parse(localUser);
+            if (parsed && typeof parsed === 'object' && parsed.id) {
+              const parsedEmail = parsed.email ? parsed.email.toLowerCase() : '';
+              const found = dbUsers.find(u => u.id === parsed.id || (parsedEmail && u.email.toLowerCase() === parsedEmail));
+              if (found) {
+                setCurrentUser(found);
+                localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(found));
+              } else {
+                setCurrentUser(null);
+                localStorage.removeItem(LOCAL_CURR_USR_KEY);
+              }
             } else {
-              setCurrentUser(parsed);
+              setCurrentUser(null);
             }
-          } else {
-            // Auto log in student
-            const defaultUser = dbUsers.find(u => u.id === 'usr-2') || dbUsers[0];
-            setCurrentUser(defaultUser);
-            localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(defaultUser));
+          } catch {
+            setCurrentUser(null);
           }
         } else {
-          // Auto log in student
-          const defaultUser = dbUsers.find(u => u.id === 'usr-2') || dbUsers[0];
-          setCurrentUser(defaultUser);
-          localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(defaultUser));
+          setCurrentUser(null);
         }
       } catch (err) {
         console.error("Error loading users:", err);
@@ -225,18 +225,18 @@ export default function App() {
 
         const localUser = localStorage.getItem(LOCAL_CURR_USR_KEY);
         if (localUser && localUser !== 'null') {
-          const parsed = JSON.parse(localUser);
-          if (parsed && typeof parsed === 'object') {
-            setCurrentUser(parsed);
-          } else {
-            const defaultUser = loadedUsers.find((u: any) => u.id === 'usr-2') || loadedUsers[0];
-            setCurrentUser(defaultUser);
-            localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(defaultUser));
+          try {
+            const parsed = JSON.parse(localUser);
+            if (parsed && typeof parsed === 'object') {
+              setCurrentUser(parsed);
+            } else {
+              setCurrentUser(null);
+            }
+          } catch {
+            setCurrentUser(null);
           }
         } else {
-          const defaultUser = loadedUsers.find((u: any) => u.id === 'usr-2') || loadedUsers[0];
-          setCurrentUser(defaultUser);
-          localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(defaultUser));
+          setCurrentUser(null);
         }
       }
     };
@@ -316,56 +316,47 @@ export default function App() {
   // Custom logging in mechanism
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginEmail.trim()) return;
+    const emailLower = loginEmail.trim().toLowerCase();
+    if (!emailLower) return;
 
-    if (isRegisterMode) {
-      // Check if user already exists
-      const existing = users.find(u => u.email.toLowerCase() === loginEmail.toLowerCase());
-      if (existing) {
-        alert('هذا الحساب مسجل بالفعل، الرجاء تسجيل الدخول العادي.');
-        setIsRegisterMode(false);
+    if (emailLower === 'admin@gcc.com') {
+      if (loginPassword !== 'GCC2026') {
+        alert(isAr ? 'كلمة المرور المدخلة للمسؤول غير صحيحة.' : 'Incorrect password for the Administrator.');
         return;
       }
-
-      // Create new user
-      const newUser: UserType = {
-        id: `usr-${Date.now()}`,
-        name: loginName.trim() || 'متدرب خليجي',
-        email: loginEmail.trim().toLowerCase(),
-        phone: loginPhone.trim() || undefined,
-        role: loginEmail.toLowerCase().includes('admin') ? 'admin' : 'student'
-      };
-
-      const updatedUsers = [...users, newUser];
-      saveUsers(updatedUsers);
-      setCurrentUser(newUser);
-      localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(newUser));
+      
+      const adminUsr = users.find(u => u.email.toLowerCase() === 'admin@gcc.com');
+      if (adminUsr) {
+        setCurrentUser(adminUsr);
+        localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(adminUsr));
+      } else {
+        const fallbackAdmin: UserType = {
+          id: 'usr-1',
+          name: 'أ. د. عمر بن عبد العزيز',
+          email: 'admin@gcc.com',
+          phone: '0500112233',
+          role: 'admin'
+        };
+        setCurrentUser(fallbackAdmin);
+        localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(fallbackAdmin));
+      }
       setShowLoginModal(false);
       resetLoginFields();
-      alert(`مرحباً بك بمجلس GCC Center: ${newUser.name}`);
+      alert(isAr ? 'تم تسجيل دخول المسؤول بنجاح.' : 'Admin logged in successfully.');
     } else {
-      // Standard search login
-      const match = users.find(u => u.email.toLowerCase() === loginEmail.toLowerCase());
+      // Student login: MUST exist in the system (i.e. added by Admin)
+      const match = users.find(u => u.email.toLowerCase() === emailLower && u.role === 'student');
       if (match) {
         setCurrentUser(match);
         localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(match));
         setShowLoginModal(false);
         resetLoginFields();
+        alert(isAr ? `مرحباً بك مجدداً بمجلس GCC Center: ${match.name}` : `Welcome back to GCC Center: ${match.name}`);
       } else {
-        // Fallback: If not found, let's create a Student account for them instantly to make it an incredibly frictionless experience!
-        const autoName = loginEmail.split('@')[0] || 'طالب جديد';
-        const autoUser: UserType = {
-          id: `usr-${Date.now()}`,
-          name: autoName,
-          email: loginEmail.trim().toLowerCase(),
-          role: loginEmail.toLowerCase().includes('admin') ? 'admin' : 'student'
-        };
-        const updatedUsers = [...users, autoUser];
-        saveUsers(updatedUsers);
-        setCurrentUser(autoUser);
-        localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(autoUser));
-        setShowLoginModal(false);
-        resetLoginFields();
+        alert(isAr 
+          ? 'عذراً، هذا البريد غير مسجل بنظام الطلاب لدينا. يرجى التواصل مع إدارة المركز للتفعيل وإسناد المقررات.' 
+          : 'Sorry, this email is not registered in our student system. Please contact the center administration to activate your account and assign courses.'
+        );
       }
     }
   };
@@ -374,6 +365,7 @@ export default function App() {
     setLoginEmail('');
     setLoginName('');
     setLoginPhone('');
+    setLoginPassword('');
     setIsRegisterMode(false);
   };
 
@@ -1066,31 +1058,18 @@ export default function App() {
                 GCC
               </div>
               <h3 className="text-xl font-extrabold text-slate-900">
-                {isRegisterMode ? 'إنشاء حساب طلابي جديد' : 'تسجيل دخول المتدربين'}
+                {isAr ? 'بوابة تسجيل دخول المتدربين والمسؤولين' : 'Trainee & Admin Login Portal'}
               </h3>
               <p className="text-xs text-slate-500">
-                {isRegisterMode ? 'سجل بياناتك المعتمدة للالتحاق بالبرامج التدريبية للأكاديمية' : 'أدخل بريدك الإلكتروني المعتمد لإجراء المصادقة ومتابعة المقررات'}
+                {isAr ? 'أدخل بريدك الإلكتروني المعتمد لإجراء المصادقة ومتابعة المقررات' : 'Enter your registered email to gain access and resume your courses'}
               </p>
             </div>
 
             <form onSubmit={handleLoginSubmit} className="space-y-4">
-              
-              {isRegisterMode && (
-                <div className="space-y-1.5 text-right">
-                  <label className="text-xs font-bold text-slate-600 block">الاسم الكريم بالكامل (ليظهر على شهادتك بدقة):</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="اكتب اسمك الثلاثي باللغة العربية..."
-                    value={loginName}
-                    onChange={(e) => setLoginName(e.target.value)}
-                    className="w-full text-xs text-slate-900 border border-slate-250 p-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-right"
-                  />
-                </div>
-              )}
-
-              <div className="space-y-1.5 text-right">
-                <label className="text-xs font-bold text-slate-600 block">عنوان البريد الإلكتروني للطلاب:</label>
+              <div className="space-y-1.5 text-right font-medium">
+                <label className="text-xs font-bold text-slate-600 block">
+                  {isAr ? 'عنوان البريد الإلكتروني:' : 'Email Address:'}
+                </label>
                 <input
                   type="email"
                   required
@@ -1101,15 +1080,18 @@ export default function App() {
                 />
               </div>
 
-              {isRegisterMode && (
-                <div className="space-y-1.5 text-right">
-                  <label className="text-xs font-bold text-slate-600 block">رقم الهاتف الجوال الفعال (مع كود الدولة):</label>
+              {loginEmail.trim().toLowerCase() === 'admin@gcc.com' && (
+                <div className="space-y-1.5 text-right font-medium transition-all duration-300">
+                  <label className="text-xs font-bold text-slate-600 block">
+                    {isAr ? 'كلمة المرور الخاصة بالمسؤول:' : 'Administrator Password:'}
+                  </label>
                   <input
-                    type="tel"
-                    placeholder="05xxxxxx"
-                    value={loginPhone}
-                    onChange={(e) => setLoginPhone(e.target.value)}
-                    className="w-full text-xs text-slate-905 border border-slate-250 p-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-left"
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full text-xs text-slate-900 border border-slate-250 p-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-left placeholder:text-right"
                   />
                 </div>
               )}
@@ -1118,41 +1100,16 @@ export default function App() {
                 type="submit"
                 className="w-full bg-slate-900 hover:bg-slate-805 text-white font-extrabold py-3 rounded-xl text-xs sm:text-sm shadow-md transition-all cursor-pointer"
               >
-                <span>{isRegisterMode ? 'إنشاء الحساب ومباشرة الدراسة' : 'تسجيل دخول فوري للمنصة'}</span>
+                <span>{isAr ? 'تسجيل دخول فوري للمنصة' : 'Immediate Platform Sign In'}</span>
               </button>
-
             </form>
 
-            {/* Quick Demo Accout Logins for ease of assessment */}
-            <div className="border-t border-slate-150 pt-4 space-y-3">
-              <span className="text-[10px] text-slate-400 font-bold block text-center">أو خيارات تجريب سريعة للجان التحكيم والأستاذ:</span>
-              <div className="grid grid-cols-2 gap-2 text-center text-[10px] font-bold">
-                <button
-                  type="button"
-                  onClick={() => triggerQuickLogin('student')}
-                  className="bg-amber-500/10 text-amber-705 border border-amber-500/20 py-2 px-1.5 rounded-lg hover:bg-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-1"
-                >
-                  <GraduationCap className="h-3.5 w-3.5" />
-                  <span>دخول طالب تجريبي</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => triggerQuickLogin('admin')}
-                  className="bg-rose-500/10 text-rose-705 border border-rose-500/20 py-2 px-1.5 rounded-lg hover:bg-rose-500/20 transition-all cursor-pointer flex items-center justify-center gap-1"
-                >
-                  <Settings className="h-3.5 w-3.5" />
-                  <span>دخول بصفة مدير</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="text-center font-medium">
-              <button
-                onClick={() => setIsRegisterMode(!isRegisterMode)}
-                className="text-amber-600 hover:text-amber-500 text-xs translate-y-1.5 inline-block"
-              >
-                {isRegisterMode ? 'لديك حساب بالفعل؟ سجل دخولك' : 'لا تملك حساباً بعد؟ أنشئ حسابك كطالب الآن'}
-              </button>
+            <div className="text-center font-medium pt-3 border-t border-slate-150">
+              <p className="text-slate-400 text-[11px] leading-relaxed">
+                {isAr 
+                  ? 'ملاحظة للمتدربين: يتم تسجيل حسابات الطلاب وإتاحة إيميلاتهم للدخول حصراً من خلال إدارة المركز والمسؤول العام.' 
+                  : 'Note for students: Student accounts are registered and pre-authorized for entry exclusively by the Center Administration.'}
+              </p>
             </div>
 
           </div>
