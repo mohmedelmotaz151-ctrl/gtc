@@ -193,20 +193,26 @@ export default function App() {
         setUsers(dbUsers);
         localStorage.setItem(LOCAL_USR_KEY, JSON.stringify(dbUsers));
 
-        // Hydrate current active user
+        // Hydrate current active user (Strictly bypass auto-login of admin on initial load if they just open the site)
         const localUser = localStorage.getItem(LOCAL_CURR_USR_KEY);
         if (localUser && localUser !== 'null') {
           try {
             const parsed = JSON.parse(localUser);
             if (parsed && typeof parsed === 'object' && parsed.id) {
               const parsedEmail = parsed.email ? parsed.email.toLowerCase() : '';
-              const found = dbUsers.find(u => u.id === parsed.id || (parsedEmail && u.email.toLowerCase() === parsedEmail));
-              if (found) {
-                setCurrentUser(found);
-                localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(found));
-              } else {
+              if (parsedEmail === 'admin@gcc.com' || parsed.role === 'admin') {
+                // Do not auto-login administrator to ensure privacy and security on load
                 setCurrentUser(null);
                 localStorage.removeItem(LOCAL_CURR_USR_KEY);
+              } else {
+                const found = dbUsers.find(u => u.id === parsed.id || (parsedEmail && u.email.toLowerCase() === parsedEmail));
+                if (found) {
+                  setCurrentUser(found);
+                  localStorage.setItem(LOCAL_CURR_USR_KEY, JSON.stringify(found));
+                } else {
+                  setCurrentUser(null);
+                  localStorage.removeItem(LOCAL_CURR_USR_KEY);
+                }
               }
             } else {
               setCurrentUser(null);
@@ -228,7 +234,12 @@ export default function App() {
           try {
             const parsed = JSON.parse(localUser);
             if (parsed && typeof parsed === 'object') {
-              setCurrentUser(parsed);
+              if (parsed.email?.toLowerCase() === 'admin@gcc.com' || parsed.role === 'admin') {
+                setCurrentUser(null);
+                localStorage.removeItem(LOCAL_CURR_USR_KEY);
+              } else {
+                setCurrentUser(parsed);
+              }
             } else {
               setCurrentUser(null);
             }
