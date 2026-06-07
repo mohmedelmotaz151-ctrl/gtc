@@ -28,7 +28,9 @@ import {
   Sliders,
   Bookmark,
   Share2,
-  Search
+  Search,
+  Download,
+  ExternalLink
 } from 'lucide-react';
 import { Course, Lesson, QuizQuestion, Certificate } from '../types';
 
@@ -680,59 +682,101 @@ export default function InteractivePlayer({
                 )}
 
                 {/* 3. PDF Document Reader */}
-                {activeLesson?.type === 'pdf' && activeLesson?.pdfContent && (
+                {activeLesson?.type === 'pdf' && (
                   <div className="space-y-6" id="pdf-lesson-content">
                     
-                    {/* Toolbar for zoom / printer / layout copy */}
-                    <div className="bg-slate-100 border border-slate-200/80 px-4 py-2.5 rounded-2xl flex items-center justify-between gap-4 text-slate-600 text-xs font-semibold">
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => setPdfZoom(z => Math.max(75, z - 25))}
-                          className="p-1 rounded bg-white border border-slate-205 hover:bg-slate-55 flex items-center"
-                          title="تصغير الخط"
-                        >
-                          <ZoomOut className="h-3.5 w-3.5" />
-                        </button>
-                        <span className="font-mono text-[10px] bg-white px-2 py-0.5 rounded border border-slate-205">{pdfZoom}%</span>
-                        <button 
-                          onClick={() => setPdfZoom(z => Math.min(150, z + 25))}
-                          className="p-1 rounded bg-white border border-slate-205 hover:bg-slate-55 flex items-center"
-                          title="تكبير الخط"
-                        >
-                          <ZoomIn className="h-3.5 w-3.5" />
-                        </button>
+                    {/* Embedded PDF File Viewer */}
+                    {activeLesson?.videoUrl ? (
+                      <div className="space-y-4">
+                        <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span className="font-extrabold text-slate-800">تحميل واستعراض المذكرة التعليمية المرفقة:</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <a 
+                              href={activeLesson.videoUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition-all text-[11px] shadow-sm cursor-pointer"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              <span>تحميل / فتح المستند بفرع مستقل</span>
+                            </a>
+                          </div>
+                        </div>
+
+                        <div className="relative rounded-2xl border-2 border-slate-200 overflow-hidden bg-white shadow-sm h-[550px] w-full">
+                          <iframe
+                            src={`${activeLesson.videoUrl}#toolbar=1&navpanes=0&scrollbar=1`}
+                            className="w-full h-full border-0"
+                            title={activeLesson.title}
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
                       </div>
+                    ) : (
+                      <div className="bg-amber-500/10 text-amber-800 border border-amber-500/25 rounded-2xl p-4 text-xs font-semibold text-center leading-relaxed">
+                        💡 لم يتم رفع ملف ورقي سحابي لهذه المذكرة حتى الآن، يرجى الاستعانة بالنصوص التعليمية الملخصة أدناه.
+                      </div>
+                    )}
 
-                      <span className="text-[10px] text-slate-500 font-bold hidden sm:block">GCC Document Viewer v2.1</span>
+                    {/* PDF Written Text Notes Falling Block */}
+                    {(activeLesson?.pdfContent || activeLesson?.description) && (
+                      <div className="space-y-4 pt-2">
+                        <div className="bg-slate-100 border border-slate-200/80 px-4 py-2.5 rounded-2xl flex items-center justify-between gap-4 text-slate-600 text-xs font-semibold">
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => setPdfZoom(z => Math.max(75, z - 25))}
+                              className="p-1 rounded bg-white border border-slate-205 hover:bg-slate-55 flex items-center cursor-pointer"
+                              title="تصغير الخط"
+                            >
+                              <ZoomOut className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="font-mono text-[10px] bg-white px-2 py-0.5 rounded border border-slate-205">{pdfZoom}%</span>
+                            <button 
+                              onClick={() => setPdfZoom(z => Math.min(150, z + 25))}
+                              className="p-1 rounded bg-white border border-slate-205 hover:bg-slate-55 flex items-center cursor-pointer"
+                              title="تكبير الخط"
+                            >
+                              <ZoomIn className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
 
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(activeLesson.pdfContent || '');
-                          alert('تم نسخ الكتيب التعليمي بنجاح إلى الحافظة.');
-                        }}
-                        className="bg-white border border-slate-205 px-3 py-1 rounded text-[10px] font-bold hover:bg-slate-55 transition-all text-slate-700"
-                      >
-                        نسخ نص الدليل
-                      </button>
-                    </div>
+                          <span className="text-[10px] text-slate-500 font-bold hidden sm:block">ملخص ونصوص المذكرة التعليمية</span>
 
-                    {/* PDF Reading Paper layout */}
-                    <div 
-                      className="bg-[#fcfbf9] border-2 border-slate-200 rounded-2xl p-6 md:p-8 shadow-inner overflow-y-auto max-h-[400px] border-b-4 border-slate-300"
-                      style={{ fontSize: `${pdfZoom}%` }}
-                      id="pdf-document-paper"
-                    >
-                      <pre className="whitespace-pre-wrap font-sans text-xs md:text-sm text-slate-800 leading-relaxed font-normal text-right">
-                        {activeLesson.pdfContent}
-                      </pre>
-                    </div>
+                          <button
+                            onClick={() => {
+                              const textToCopy = activeLesson.pdfContent || activeLesson.description || '';
+                              navigator.clipboard.writeText(textToCopy);
+                              alert('تم نسخ الكتيب التعليمي بنجاح إلى الحافظة.');
+                            }}
+                            className="bg-white border border-slate-205 px-3 py-1 rounded text-[10px] font-bold hover:bg-slate-55 transition-all text-slate-700 cursor-pointer"
+                          >
+                            نسخ نص الدليل
+                          </button>
+                        </div>
 
-                    <div className="flex justify-center">
+                        {/* PDF Reading Paper layout */}
+                        <div 
+                          className="bg-[#fcfbf9] border-2 border-slate-200 rounded-2xl p-6 md:p-8 shadow-inner overflow-y-auto max-h-[400px] border-b-4 border-slate-300"
+                          style={{ fontSize: `${pdfZoom}%` }}
+                          id="pdf-document-paper"
+                        >
+                          <pre className="whitespace-pre-wrap font-sans text-xs md:text-sm text-slate-800 leading-relaxed font-normal text-right">
+                            {activeLesson.pdfContent || activeLesson.description}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-center pt-2">
                       <button
                         onClick={() => {
                           if (!progress.has(activeLesson.id)) onToggleLessonCompleted(activeLesson.id);
                         }}
-                        className="bg-slate-900 text-amber-500 font-bold text-xs py-2.5 px-6 rounded-xl hover:bg-slate-805 transition-all"
+                        className="bg-slate-900 text-amber-500 font-bold text-xs py-2.5 px-6 rounded-xl hover:bg-slate-805 transition-all shadow-md cursor-pointer"
                       >
                         لقد أكملت قراءة وفهم الملف الورقي
                       </button>
