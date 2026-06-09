@@ -275,6 +275,11 @@ export default function App() {
     }
   }, []);
 
+  // Enforce scrolling to the top of the page when active view or course selection changes, addressing "واجعل الصفحة تبدا من الاعلي وليس الاسفل"
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [activeCourse, unregisteredCourse, isAdminView, currentUser]);
+
   // Save changes helper functions to sync with localStorage and backend Cloud database
   const saveCategories = (updated: Category[]) => {
     setCategories(updated);
@@ -517,6 +522,27 @@ export default function App() {
     saveCourses(updatedCourses);
   };
 
+  const handleDeleteLesson = (courseId: string, lessonId: string) => {
+    const courseLessons = lessons[courseId] || [];
+    const filtered = courseLessons.filter(l => l.id !== lessonId);
+    
+    const updatedLsnMap = {
+      ...lessons,
+      [courseId]: filtered
+    };
+    saveLessons(updatedLsnMap);
+    deleteLessonFromDb(lessonId);
+
+    // Update the course lessonsCount
+    const updatedCourses = courses.map(c => {
+      if (c.id === courseId) {
+        return { ...c, lessonsCount: Math.max(0, (c.lessonsCount || 0) - 1) };
+      }
+      return c;
+    });
+    saveCourses(updatedCourses);
+  };
+
   const handleDeleteCourse = (courseId: string) => {
     const filtered = courses.filter(c => c.id !== courseId);
     saveCourses(filtered);
@@ -648,6 +674,7 @@ export default function App() {
             onAddLesson={handleAddLesson}
             onDeleteCourse={handleDeleteCourse}
             onDeleteCategory={handleDeleteCategory}
+            onDeleteLesson={handleDeleteLesson}
             onSaveUsers={saveUsers}
           />
 

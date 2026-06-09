@@ -31,7 +31,8 @@ import {
   Search,
   Download,
   ExternalLink,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { Course, Lesson, QuizQuestion, Certificate } from '../types';
 
@@ -67,6 +68,7 @@ export default function InteractivePlayer({
   const [videoProgress, setVideoProgress] = useState(0); // 0 to 100
   const [pdfZoom, setPdfZoom] = useState(100); // percentage
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [videoPlayError, setVideoPlayError] = useState(false);
 
   // Filter lessons based on inner query
   const filteredLessons = React.useMemo(() => {
@@ -184,6 +186,7 @@ export default function InteractivePlayer({
     setSelectedAnswers({});
     setLessonQuizSubmitted(false);
     setLessonQuizScore(0);
+    setVideoPlayError(false);
   }, [activeLessonIndex]);
 
   // Calculate percentage
@@ -582,7 +585,7 @@ export default function InteractivePlayer({
                       </div>
 
                       {/* Real HTML5 Video element or simulation fallback */}
-                      {activeLesson?.videoUrl ? (
+                      {activeLesson?.videoUrl && !videoPlayError ? (
                         <video
                           ref={videoRef}
                           src={activeLesson.videoUrl}
@@ -601,7 +604,41 @@ export default function InteractivePlayer({
                               onToggleLessonCompleted(activeLesson.id);
                             }
                           }}
+                          onError={(e) => {
+                            console.warn("HTML5 Video playback error (browser codec issue or loading error):", e);
+                            setVideoPlayError(true);
+                          }}
                         />
+                      ) : videoPlayError ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-slate-900 border-b border-slate-800 space-y-4">
+                          <AlertCircle className="h-12 w-12 text-rose-500 animate-bounce" />
+                          <div className="space-y-1">
+                            <h3 className="font-bold text-sm text-slate-250">صيغة الفيديو أو الرابط غير مدعوم بالكامل في متصفحك</h3>
+                            <p className="text-[11px] text-slate-400 max-w-sm leading-relaxed">
+                              ربما لم تتوافق صيغة ملف الـ MP4 مع متصفحك أو حدثت مشكلة في تحميله من سيران المزود. لا تقلق، يمكنك تشغيل محاكاة المحاضرة بالموقع أو فتح وتحميل ملف الفيديو برابط مباشر ومتابعة الدرس فوراً!
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <a 
+                              href={activeLesson.videoUrl} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition-all text-[11px] cursor-pointer"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              <span>تحميل وتشغيل الفيديو مباشرة</span>
+                            </a>
+                            <button
+                              onClick={() => {
+                                setVideoPlayError(false);
+                                setIsPlaying(true);
+                              }}
+                              className="bg-slate-800 hover:bg-slate-750 text-slate-200 px-3 py-2 rounded-xl text-[11px] font-bold border border-slate-700"
+                            >
+                              تشغيل المحاكاة التعليمية
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-slate-900 border-b border-slate-800">
                           <Video className={`h-16 w-16 mb-4 ${isPlaying ? 'text-amber-500 rotate-12 transition-all duration-700 animate-pulse' : 'text-slate-600'}`} />

@@ -41,6 +41,7 @@ interface AdminDashboardProps {
   onAddLesson: (courseId: string, lesson: { title: string; type: 'video' | 'pdf' | 'presentation' | 'quiz'; duration: string; description: string; url?: string }) => void;
   onDeleteCourse: (courseId: string) => void;
   onDeleteCategory: (categoryId: string) => void;
+  onDeleteLesson?: (courseId: string, lessonId: string) => void;
   onSaveUsers?: (users: User[]) => void;
 }
 
@@ -55,6 +56,7 @@ export default function AdminDashboard({
   onAddLesson,
   onDeleteCourse,
   onDeleteCategory,
+  onDeleteLesson,
   onSaveUsers
 }: AdminDashboardProps) {
   
@@ -487,6 +489,12 @@ export default function AdminDashboard({
     setLessonDesc('');
     setLessonUrl('');
     alert('تمت إضافة المحاضرة الجديدة وضمها تحت فهرس الكورس المحدد بنجاح.');
+  };
+
+  const handleDeleteLessonPress = (lessonId: string, title: string) => {
+    if (onDeleteLesson && window.confirm(`هل أنت متأكد من رغبتك في حذف المحاضرة "${title}"؟ لا يمكن التراجع عن هذا الإجراء.`)) {
+      onDeleteLesson(lessonCourseId, lessonId);
+    }
   };
 
   // Calculate generic statistics
@@ -1107,6 +1115,87 @@ export default function AdminDashboard({
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* List and manage existing lessons of the selected course */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-right">
+            <h3 className="font-extrabold text-slate-900 text-base mb-2 flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-indigo-500" />
+              <span>جرد وإدارة المحاضرات المنشورة حالياً</span>
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              {lessonCourseId 
+                ? `المحاضرات المدرجة حالياً ضمن مسار كورس: "${courses.find(c => c.id === lessonCourseId)?.title || lessonCourseId}"`
+                : 'الرجاء اختيار كورس من قائمة الإدخال بالأعلى لاستعراض وتعديل محاضراته حالاً.'}
+            </p>
+
+            {lessonCourseId && (
+              (!lessons[lessonCourseId] || lessons[lessonCourseId].length === 0) ? (
+                <div className="text-center py-8 text-slate-400 text-xs border border-dashed border-slate-200 rounded-xl" id="no-admin-lessons-msg">
+                  لا توجد محاضرات مضافة ومسجلة لهذا الكورس حاليًا. قم بإضافة محاضرة لعرضها هنا.
+                </div>
+              ) : (
+                <div className="overflow-x-auto" id="admin-lessons-table">
+                  <table className="w-full text-right border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 font-bold">
+                        <th className="py-2.5 pr-2">المحاضرة / العنوان</th>
+                        <th className="py-2.5 px-3">النوع</th>
+                        <th className="py-2.5 px-3">المدة المقدرة</th>
+                        <th className="py-2.5 px-3">رابط المصدر</th>
+                        <th className="py-2.5 pl-2 text-left">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {(lessons[lessonCourseId] || []).map((lesson) => (
+                        <tr key={lesson.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-3 pr-2 font-semibold text-slate-800">
+                            <span className="flex items-center gap-2">
+                              {lesson.type === 'video' && <Video className="h-4 w-4 text-amber-500 shrink-0" />}
+                              {lesson.type === 'pdf' && <FileText className="h-4 w-4 text-emerald-500 shrink-0" />}
+                              {lesson.type === 'presentation' && <BookOpen className="h-4 w-4 text-blue-500 shrink-0" />}
+                              {lesson.type === 'quiz' && <Award className="h-4 w-4 text-purple-500 shrink-0" />}
+                              <span>{lesson.title}</span>
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-slate-600">
+                            {lesson.type === 'video' && 'محاضرة فيديو / مقطع'}
+                            {lesson.type === 'pdf' && 'ملف ومذكرة PDF'}
+                            {lesson.type === 'presentation' && 'عرض توضيحي / شرائح'}
+                            {lesson.type === 'quiz' && 'اختبار قصير'}
+                          </td>
+                          <td className="py-3 px-3 text-slate-500 font-mono text-[11px]">{lesson.duration || 'غير محدد'}</td>
+                          <td className="py-3 px-3 text-slate-500 text-[11px] max-w-[150px] truncate">
+                            {lesson.videoUrl ? (
+                              <a 
+                                href={lesson.videoUrl} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="text-amber-600 hover:underline font-mono"
+                              >
+                                {lesson.videoUrl}
+                              </a>
+                            ) : (
+                              <span className="text-slate-350 select-none">لا يوجد ملف خارجي</span>
+                            )}
+                          </td>
+                          <td className="py-3 pl-2 text-left">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteLessonPress(lesson.id, lesson.title)}
+                              className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer animate-none"
+                              title="حذف المحاضرة نهائياً"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
           </div>
 
         </div>

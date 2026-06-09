@@ -97,6 +97,37 @@ export async function fetchLessonsFromDb(): Promise<Record<string, Lesson[]>> {
       }
       lessonsMap[lesson.courseId].push(lesson);
     });
+
+    // Enforce consistent chronological sorting: original pre-seeded lessons first,
+    // and custom uploaded/created lessons appended sequentially at the bottom.
+    Object.keys(lessonsMap).forEach(courseId => {
+      lessonsMap[courseId].sort((a, b) => {
+        const matchA_standard = a.id.match(/^lesson-([^-]+)-(\d+)$/);
+        const matchB_standard = b.id.match(/^lesson-([^-]+)-(\d+)$/);
+        const matchA_dynamic = a.id.match(/^lesson-(\d+)$/);
+        const matchB_dynamic = b.id.match(/^lesson-(\d+)$/);
+
+        // If both are pre-seeded standard lessons check course slug index
+        if (matchA_standard && matchB_standard) {
+          if (matchA_standard[1] === matchB_standard[1]) {
+            return parseInt(matchA_standard[2], 10) - parseInt(matchB_standard[2], 10);
+          }
+          return matchA_standard[1].localeCompare(matchB_standard[1]);
+        }
+
+        // Standard pre-seeded lessons should always go first
+        if (matchA_standard && !matchB_standard) return -1;
+        if (!matchA_standard && matchB_standard) return 1;
+
+        // Custom added lessons with unix timestamp ids sorted chronologically
+        if (matchA_dynamic && matchB_dynamic) {
+          return parseInt(matchA_dynamic[1], 10) - parseInt(matchB_dynamic[1], 10);
+        }
+
+        return a.id.localeCompare(b.id);
+      });
+    });
+
     return lessonsMap;
   } catch (err) {
     handleFirestoreError(err, OperationType.GET, colPath);
