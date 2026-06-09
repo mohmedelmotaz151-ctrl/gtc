@@ -145,21 +145,24 @@ export default function InteractivePlayer({
       if (!videoRef.current) {
         interval = setInterval(() => {
           setVideoProgress((prev) => {
-            if (prev >= 100) {
-              setIsPlaying(false);
-              // Auto complete video lesson
-              if (!progress.has(activeLesson.id)) {
-                onToggleLessonCompleted(activeLesson.id);
-              }
-              return 100;
-            }
-            return prev + (1.5 * playbackSpeed);
+            const nextVal = prev + (1.5 * playbackSpeed);
+            return nextVal >= 100 ? 100 : nextVal;
           });
         }, 1000);
       }
     }
     return () => clearInterval(interval);
-  }, [isPlaying, activeLesson, playbackSpeed, progress]);
+  }, [isPlaying, activeLesson, playbackSpeed]);
+
+  // Handle video mock timeline completion side effects safely
+  useEffect(() => {
+    if (activeLesson?.type === 'video' && !videoRef.current && videoProgress >= 100 && isPlaying) {
+      setIsPlaying(false);
+      if (!progress.has(activeLesson.id)) {
+        onToggleLessonCompleted(activeLesson.id);
+      }
+    }
+  }, [videoProgress, isPlaying, activeLesson, progress, onToggleLessonCompleted]);
 
   // Sync real video play/pause status and playbackSpeed
   useEffect(() => {
