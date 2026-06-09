@@ -65,23 +65,28 @@ export default function FileUploader({
       if (presignRes.ok) {
         const presignData = await presignRes.json();
         if (presignData.success && presignData.uploadUrl) {
-          console.log('Successfully generated presigned R2 URL. Commencing direct client upload.');
+          console.log('Successfully generated presigned R2 URL. Commencing direct client upload to:', presignData.uploadUrl);
           
-          const uploadRes = await fetch(presignData.uploadUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': file.type || 'application/octet-stream'
-            },
-            body: file
-          });
+          try {
+            const uploadRes = await fetch(presignData.uploadUrl, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': file.type || 'application/octet-stream'
+              },
+              body: file
+            });
 
-          if (uploadRes.ok) {
-            console.log('Direct Cloudflare R2 upload succeeded!', presignData.fileUrl);
-            setUploadedUrl(presignData.fileUrl);
-            onUploadSuccess(presignData.fileUrl);
-            uploadedSuccessfully = true;
-          } else {
-            console.warn(`Direct PUT upload failed with status (${uploadRes.status}).`);
+            if (uploadRes.ok) {
+              console.log('Direct Cloudflare R2 upload succeeded!', presignData.fileUrl);
+              setUploadedUrl(presignData.fileUrl);
+              onUploadSuccess(presignData.fileUrl);
+              uploadedSuccessfully = true;
+            } else {
+              const errBody = await uploadRes.text().catch(() => '');
+              console.warn(`Direct PUT upload failed with status (${uploadRes.status}). Base response context:`, errBody);
+            }
+          } catch (r2PutError: any) {
+            console.error('Direct PUT upload to R2 failed due to network / CORS. Please ensure CORS rules are set on your Cloudflare R2 bucket (Allowed Methods: PUT, Allowed Headers: content-type, Allowed Origins: *). Error details:', r2PutError?.message || r2PutError);
           }
         }
       }
