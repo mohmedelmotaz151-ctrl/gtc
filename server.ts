@@ -316,6 +316,24 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
       });
     };
 
+    // Helper function to safely write the file locally if cloud uploads are unavailable or fail.
+    // We return a relative URL starting with `/assets` which is guaranteed to work 
+    // seamlessly on any browser, device, or incognito window because it queries the active host context!
+    const saveLocalFallback = (file: Express.Multer.File) => {
+      console.log(`Executing local static storage wrapper as primary/secondary fallback...`);
+      const localDir = path.join(process.cwd(), 'assets', 'uploads');
+      if (!fs.existsSync(localDir)) {
+        fs.mkdirSync(localDir, { recursive: true });
+      }
+      const localSafeName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const localPath = path.join(localDir, localSafeName);
+      fs.writeFileSync(localPath, file.buffer);
+
+      const localUrl = `/assets/uploads/${localSafeName}`;
+      console.log(`Local static asset saved on disk successfully! URL: ${localUrl}`);
+      return localUrl;
+    };
+
     // Routing Logic to satisfy Cloudflare R2 requirement:
     if (isVideo && fileSize > limit15MB) {
       console.log(`Video sized > 15MB (${(fileSize / (1024 * 1024)).toFixed(2)} MB). Directing upload to Cloudflare R2...`);
@@ -354,7 +372,7 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
         });
 
       } catch (r2Error: any) {
-        console.warn(`Direct R2 upload failed or credentials omitted: ${r2Error.message}. Escalating fallback...`);
+        console.warn(`Direct R2 upload failed or credentials omitted: ${r2Error.message}. Escalating fallback to Cloudinary...`);
         // Fallback Option 1: Try Cloudinary anyway (some subscriptions allow higher limits)
         try {
           console.log(`Retrying via Cloudinary backup upload...`);
@@ -368,20 +386,8 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
             size: fileSize
           });
         } catch (clError: any) {
-          // Fallback Option 2: Final secure sandbox fallback - write local static file under assets/uploads
-          console.log(`Cloudinary also fails: ${clError.message}. Saving as local dev static asset...`);
-          const localDir = path.join(process.cwd(), 'assets', 'uploads');
-          if (!fs.existsSync(localDir)) {
-            fs.mkdirSync(localDir, { recursive: true });
-          }
-          const localSafeName = `${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-          const localPath = path.join(localDir, localSafeName);
-          fs.writeFileSync(localPath, req.file.buffer);
-
-          const appUrl = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
-          const localUrl = `${appUrl}/assets/uploads/${localSafeName}`;
-          console.log(`Local dev static backup saved. URL: ${localUrl}`);
-
+          console.warn(`Cloudinary backup also fails: ${clError.message}. Writing backup to local server disk...`);
+          const localUrl = saveLocalFallback(req.file);
           return res.json({
             success: true,
             url: localUrl,
@@ -394,19 +400,31 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
     } else {
       // If ≤ 15MB or it is not a video, upload directly to Cloudinary
       console.log(`Routing file up to Cloudinary (either non-video or video <= 15MB)...`);
-      const cloudinaryResult = await uploadToCloudinary(req.file.buffer, req.file.mimetype, req.file.originalname);
-      console.log('Cloudinary upload success. URL:', cloudinaryResult.secure_url);
+      try {
+        const cloudinaryResult = await uploadToCloudinary(req.file.buffer, req.file.mimetype, req.file.originalname);
+        console.log('Cloudinary upload success. URL:', cloudinaryResult.secure_url);
 
-      return res.json({
-        success: true,
-        url: cloudinaryResult.secure_url,
-        provider: 'cloudinary',
-        resourceType: cloudinaryResult.resource_type,
-        duration: cloudinaryResult.duration,
-        format: cloudinaryResult.format,
-        publicId: cloudinaryResult.public_id,
-        size: fileSize
-      });
+        return res.json({
+          success: true,
+          url: cloudinaryResult.secure_url,
+          provider: 'cloudinary',
+          resourceType: cloudinaryResult.resource_type,
+          duration: cloudinaryResult.duration,
+          format: cloudinaryResult.format,
+          publicId: cloudinaryResult.public_id,
+          size: fileSize
+        });
+      } catch (cloudinaryError: any) {
+        console.warn(`Direct Cloudinary upload failed: ${cloudinaryError.message}. Escalating local server fallback...`);
+        const localUrl = saveLocalFallback(req.file);
+        return res.json({
+          success: true,
+          url: localUrl,
+          provider: 'local_dev_fallback',
+          mimetype: req.file.mimetype,
+          size: fileSize
+        });
+      }
     }
 
   } catch (err: any) {

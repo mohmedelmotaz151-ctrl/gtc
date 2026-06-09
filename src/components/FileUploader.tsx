@@ -148,8 +148,8 @@ export default function FileUploader({
       }
     }
 
-    // 3. Server-side proxy upload fallback if direct uploads failed, only for smaller files (< 4.2 MB)
-    if (!uploadedSuccessfully && file.size < 4.2 * 1024 * 1024) {
+    // 3. Server-side proxy upload fallback if direct uploads failed, only for files less than 200 MB (suitable for all Cloud Run containers!)
+    if (!uploadedSuccessfully && file.size < 200 * 1024 * 1024) {
       console.log('Starting backup upload via server fallback...');
       const formData = new FormData();
       formData.append('file', file);
