@@ -587,10 +587,12 @@ export default function InteractivePlayer({
                       {/* Real HTML5 Video element or simulation fallback */}
                       {activeLesson?.videoUrl && !videoPlayError ? (
                         <video
+                          key={activeLesson.id}
                           ref={videoRef}
                           src={activeLesson.videoUrl}
                           className="w-full h-full object-contain"
                           playsInline
+                          preload="metadata"
                           onTimeUpdate={() => {
                             if (videoRef.current && videoRef.current.duration) {
                               const pct = (videoRef.current.currentTime / videoRef.current.duration) * 100;
@@ -605,8 +607,20 @@ export default function InteractivePlayer({
                             }
                           }}
                           onError={(e) => {
-                            console.warn("HTML5 Video playback error (browser codec issue or loading error):", e);
-                            setVideoPlayError(true);
+                            const err = e.currentTarget.error;
+                            console.warn("HTML5 Video playback event check:", err ? { code: err.code, message: err.message } : "Unknown event error");
+                            
+                            // Only trigger fatal playback errors for real codec decode (3) or entirely unsupported source formatting (4)
+                            if (err) {
+                              if (err.code === 3 || err.code === 4) {
+                                console.error("Fatal browser video error detected:", err.code);
+                                setVideoPlayError(true);
+                              } else {
+                                console.log("Ignored transient media progress/abort code:", err.code);
+                              }
+                            } else {
+                              console.log("Ignored unclassified video event to ensure highest compatibility on Safari/Chromium.");
+                            }
                           }}
                         />
                       ) : videoPlayError ? (
