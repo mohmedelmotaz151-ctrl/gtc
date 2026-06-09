@@ -46,20 +46,8 @@ export default function FileUploader({
     setUploadedUrl(null);
     setFileName(file.name);
 
-    // Limit check: up to 5GB for videos and 20MB for other files/documents
+    // No limit checks are applied to make uploads unlimited
     const isVideo = file.type.startsWith('video/') || file.name.endsWith('.mp4') || file.name.endsWith('.mov') || file.name.endsWith('.avi');
-    const maxSizeLimit = isVideo ? 5 * 1024 * 1024 * 1024 : 20 * 1024 * 1024;
-    
-    if (file.size > maxSizeLimit) {
-      setUploadError(
-        isVideo 
-          ? 'حجم الفيديو المرفوع كبير جداً ويتجاوز الحدود المسموحة (الحد الأقصى هو 5 جيجابايت).'
-          : 'حجم الملف المرفوع كبير جداً ويتجاوز الحدود المسموحة لهذه الصيغة (الحد الأقصى هو 20 ميجابايت).'
-      );
-      setIsUploading(false);
-      return;
-    }
-
     const formData = new FormData();
     formData.append('file', file);
 
@@ -79,7 +67,7 @@ export default function FileUploader({
           } else {
             const text = await response.text();
             if (response.status === 413) {
-              errorMessage = 'حجم الملف المرفوع كبير جداً ويتجاوز حدود شبكة الرفع المسموح بها (الحد الأقصى 5 جيجابايت للفيديو و20 ميجابايت للمستندات).';
+              errorMessage = 'حجم الملف المرفوع كبير جداً ويتجاوز حدود الرفع القصوى المسموحة من شبكة الخادم.';
             } else {
               errorMessage = `خطأ في السيرفر (${response.status}): ${text.slice(0, 80)}`;
             }

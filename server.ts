@@ -103,13 +103,10 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }));
 // Express route for static files under assets/ (useful for fallback media and uploaded avatars)
 app.use('/assets', express.static(path.join(process.cwd(), 'assets')));
 
-// Setup multer for memory storage file uploads
+// Setup multer for memory storage file uploads with unlimited limits
 const memoryStorage = multer.memoryStorage();
 const uploadHandler = multer({
-  storage: memoryStorage,
-  limits: {
-    fileSize: 5120 * 1024 * 1024 // 5GB max limit to support high-density video lecture uploads
-  }
+  storage: memoryStorage
 });
 
 // Lazy initialisation helper for Gemini API SDK
@@ -203,15 +200,6 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
                     req.file.originalname.endsWith('.mov') || 
                     req.file.originalname.endsWith('.avi');
     const fileSize = req.file.size;
-    const limitVideo = 5120 * 1024 * 1024; // 5 GB
-    const limitDocument = 20 * 1024 * 1024; // 20 MB
-
-    if (isVideo && fileSize > limitVideo) {
-      return res.status(400).json({ error: 'حجم الفيديو المرفوع كبير جداً ويتجاوز الحدود المسموحة (الحد الأقصى هو 5 جيجابايت).' });
-    }
-    if (!isVideo && fileSize > limitDocument) {
-      return res.status(400).json({ error: 'حجم الملف المرفوع كبير جداً ويتجاوز الحدود المسموحة (الحد الأقصى هو 20 ميجابايت للمستندات والصور).' });
-    }
 
     const limit15MB = 15 * 1024 * 1024;
 
