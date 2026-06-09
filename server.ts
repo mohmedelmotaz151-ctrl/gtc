@@ -189,6 +189,37 @@ app.get('/api/cloudinary/status', (req, res) => {
   });
 });
 
+// API endpoint to sign requests for direct client-side upload to Cloudinary (bypassing 4.5MB serverless limits)
+app.post('/api/cloudinary/sign', (req, res) => {
+  try {
+    const timestamp = Math.round((new Date()).getTime() / 1000);
+    const folder = 'gcc_academy_media';
+    
+    // Alphabetically sorted parameters to be signed
+    const paramsToSign = {
+      folder: folder,
+      timestamp: timestamp,
+    };
+    
+    const signature = cloudinary.utils.api_sign_request(
+      paramsToSign,
+      process.env.CLOUDINARY_API_SECRET || "Md8UOXGYwQJu_Lvh81SbiCmDUL0"
+    );
+    
+    res.json({
+      success: true,
+      signature,
+      timestamp,
+      apiKey: process.env.CLOUDINARY_API_KEY || "694234951845448",
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME || "dtd6qwe2a",
+      folder: folder
+    });
+  } catch (err: any) {
+    console.error('Error generating Cloudinary upload signature:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // API endpoint to generate a presigned PUT URL for uploading directly to Cloudflare R2 from the client-side
 app.post('/api/upload/presign', async (req, res) => {
   try {
