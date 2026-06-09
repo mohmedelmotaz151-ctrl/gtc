@@ -43,6 +43,10 @@ interface AdminDashboardProps {
   onDeleteCategory: (categoryId: string) => void;
   onDeleteLesson?: (courseId: string, lessonId: string) => void;
   onSaveUsers?: (users: User[]) => void;
+  onEditCategory?: (category: Category) => void;
+  onEditCourse?: (course: Course) => void;
+  onEditLesson?: (courseId: string, lessonId: string, updatedLesson: Lesson) => void;
+  onDeleteUser?: (userId: string) => void;
 }
 
 export default function AdminDashboard({
@@ -57,7 +61,11 @@ export default function AdminDashboard({
   onDeleteCourse,
   onDeleteCategory,
   onDeleteLesson,
-  onSaveUsers
+  onSaveUsers,
+  onEditCategory,
+  onEditCourse,
+  onEditLesson,
+  onDeleteUser
 }: AdminDashboardProps) {
   
   // Tab control
@@ -425,7 +433,12 @@ export default function AdminDashboard({
   const [lessonDesc, setLessonDesc] = useState('');
   const [lessonUrl, setLessonUrl] = useState('');
 
-  // Submit handers
+  // Editing state hooks
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+
+  // Submit handlers
   const handleSubmitCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!catName.trim()) return;
@@ -433,15 +446,44 @@ export default function AdminDashboard({
     // Set fallback image for category
     const imageToUse = catImage.trim() || 'https://images.unsplash.com/photo-1544377193-33dcf4d68fb5?q=80&w=600';
     
-    onAddCategory({
-      name: catName,
-      image: imageToUse,
-      iconName: catIcon
-    });
+    if (editingCategory) {
+      if (onEditCategory) {
+        onEditCategory({
+          ...editingCategory,
+          name: catName,
+          image: imageToUse,
+          iconName: catIcon
+        });
+        alert('تم تعديل تصنيف الكورسات بنجاح.');
+      }
+      setEditingCategory(null);
+    } else {
+      onAddCategory({
+        name: catName,
+        image: imageToUse,
+        iconName: catIcon
+      });
+      alert('تمت إضافة تصنيف الكورسات الجديد هذا إلى لوحة التحكم بنجاح.');
+    }
 
     setCatName('');
     setCatImage('');
-    alert('تمت إضافة تصنيف الكورسات الجديد هذا إلى لوحة التحكم بنجاح.');
+    setCatIcon('ShieldAlert');
+  };
+
+  const handleStartEditCategory = (cat: Category) => {
+    setEditingCategory(cat);
+    setCatName(cat.name);
+    setCatImage(cat.image);
+    setCatIcon(cat.iconName);
+    document.getElementById('cat-tab-content')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleCancelEditCategory = () => {
+    setEditingCategory(null);
+    setCatName('');
+    setCatImage('');
+    setCatIcon('ShieldAlert');
   };
 
   const handleSubmitCourse = (e: React.FormEvent) => {
@@ -453,21 +495,64 @@ export default function AdminDashboard({
 
     const imageToUse = courseImg.trim() || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600';
 
-    onAddCourse({
-      categoryId: courseCatId,
-      title: courseTitle,
-      description: courseDesc,
-      image: imageToUse,
-      instructor: courseInst || 'مدرب معتمد',
-      duration: courseDuration,
-      level: courseLvl
-    });
+    if (editingCourse) {
+      if (onEditCourse) {
+        onEditCourse({
+          ...editingCourse,
+          categoryId: courseCatId,
+          title: courseTitle,
+          description: courseDesc,
+          image: imageToUse,
+          instructor: courseInst || 'مدرب معتمد',
+          duration: courseDuration,
+          level: courseLvl
+        });
+        alert('تم تعديل الكورس بنجاح.');
+      }
+      setEditingCourse(null);
+    } else {
+      onAddCourse({
+        categoryId: courseCatId,
+        title: courseTitle,
+        description: courseDesc,
+        image: imageToUse,
+        instructor: courseInst || 'مدرب معتمد',
+        duration: courseDuration,
+        level: courseLvl
+      });
+      alert('تمت إضافة الكورس الجديد بنجاح في قاعدة البيانات.');
+    }
 
+    setCourseCatId('');
     setCourseTitle('');
     setCourseDesc('');
     setCourseImg('');
     setCourseInst('');
-    alert('تمت إضافة الكورس الجديد بنجاح في قاعدة البيانات.');
+    setCourseDuration('12 ساعة');
+    setCourseLvl('مبتدئ');
+  };
+
+  const handleStartEditCourse = (course: Course) => {
+    setEditingCourse(course);
+    setCourseCatId(course.categoryId);
+    setCourseTitle(course.title);
+    setCourseDesc(course.description);
+    setCourseImg(course.image);
+    setCourseInst(course.instructor);
+    setCourseDuration(course.duration);
+    setCourseLvl(course.level);
+    document.getElementById('courses-tab-content')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleCancelEditCourse = () => {
+    setEditingCourse(null);
+    setCourseCatId('');
+    setCourseTitle('');
+    setCourseDesc('');
+    setCourseImg('');
+    setCourseInst('');
+    setCourseDuration('12 ساعة');
+    setCourseLvl('مبتدئ');
   };
 
   const handleSubmitLesson = (e: React.FormEvent) => {
@@ -477,18 +562,55 @@ export default function AdminDashboard({
       return;
     }
 
-    onAddLesson(lessonCourseId, {
-      title: lessonTitle,
-      type: lessonType,
-      duration: lessonDuration,
-      description: lessonDesc,
-      url: lessonUrl || undefined
-    });
+    if (editingLesson) {
+      if (onEditLesson) {
+        onEditLesson(lessonCourseId, editingLesson.id, {
+          ...editingLesson,
+          title: lessonTitle,
+          type: lessonType,
+          duration: lessonDuration,
+          description: lessonDesc,
+          videoUrl: lessonUrl || undefined,
+          pdfContent: lessonType === 'pdf' ? lessonDesc : undefined,
+          slides: lessonType === 'presentation' ? [
+            { title: lessonTitle, content: ['محتوى الدرس التوضيحي', lessonDesc] }
+          ] : undefined
+        });
+        alert('تم تعديل المحاضرة وتحديث البيانات بنجاح.');
+      }
+      setEditingLesson(null);
+    } else {
+      onAddLesson(lessonCourseId, {
+        title: lessonTitle,
+        type: lessonType,
+        duration: lessonDuration,
+        description: lessonDesc,
+        url: lessonUrl || undefined
+      });
+      alert('تمت إضافة المحاضرة الجديدة وضمها تحت فهرس الكورس المحدد بنجاح.');
+    }
 
     setLessonTitle('');
     setLessonDesc('');
     setLessonUrl('');
-    alert('تمت إضافة المحاضرة الجديدة وضمها تحت فهرس الكورس المحدد بنجاح.');
+  };
+
+  const handleStartEditLesson = (lesson: Lesson) => {
+    setEditingLesson(lesson);
+    setLessonCourseId(lesson.courseId);
+    setLessonTitle(lesson.title);
+    setLessonType(lesson.type);
+    setLessonDuration(lesson.duration);
+    setLessonDesc(lesson.description);
+    setLessonUrl(lesson.videoUrl || '');
+    document.getElementById('lessons-tab-content')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleCancelEditLesson = () => {
+    setEditingLesson(null);
+    setLessonTitle('');
+    setLessonDesc('');
+    setLessonUrl('');
   };
 
   const handleDeleteLessonPress = (lessonId: string, title: string) => {
@@ -717,7 +839,7 @@ export default function AdminDashboard({
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-2xl text-right">
             <h3 className="font-extrabold text-slate-900 text-base mb-4 flex items-center gap-2">
               <PlusCircle className="h-5 w-5 text-amber-500" />
-              <span>إضافة فرع وقسم كورسات جديد للمركز</span>
+              <span>{editingCategory ? `تعديل فرع وقسم كورسات: ${editingCategory.name}` : 'إضافة فرع وقسم كورسات جديد للمركز'}</span>
             </h3>
 
             <form onSubmit={handleSubmitCategory} className="space-y-4">
@@ -779,18 +901,27 @@ export default function AdminDashboard({
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-end">
+              <div className="pt-2 flex justify-end gap-2">
+                {editingCategory && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEditCategory}
+                    className="bg-slate-200 text-slate-700 font-bold px-6 py-2.5 rounded-xl text-xs hover:bg-slate-300 transition-all shadow"
+                  >
+                    إلغاء التعديل
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="bg-slate-900 text-amber-500 font-bold px-6 py-2.5 rounded-xl text-xs hover:bg-slate-805 transition-all shadow"
                 >
-                  حفظ وتخزين هذا القسم الجديد
+                  {editingCategory ? 'حفظ التعديلات واعتراض التخزين' : 'حفظ وتخزين هذا القسم الجديد'}
                 </button>
               </div>
             </form>
           </div>
 
-          {/* List of existing Categories with delete buttons */}
+          {/* List of existing Categories with delete and edit buttons */}
           <div className="space-y-4" id="categories-inventory">
             <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
               <FolderOpen className="h-5 w-5 text-amber-500" />
@@ -805,17 +936,26 @@ export default function AdminDashboard({
                     <p className="text-[10px] text-slate-400 font-mono">ID: {cat.id} | Icon: {cat.iconName}</p>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      if (confirm(`هل أنت متأكد من رغبتك في حذف قسم (${cat.name})؟ هذا قد يخفي الكورسات المنتمية له.`)) {
-                        onDeleteCategory(cat.id);
-                      }
-                    }}
-                    className="p-1.5 rounded-lg text-rose-500 bg-rose-50 hover:bg-rose-100 transition-colors"
-                    title="حذف القسم"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      onClick={() => handleStartEditCategory(cat)}
+                      className="p-1.5 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-105 transition-colors"
+                      title="تعديل هذا القسم"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`هل أنت متأكد من رغبتك في حذف قسم (${cat.name})؟ هذا قد يخفي الكورسات المنتمية له.`)) {
+                          onDeleteCategory(cat.id);
+                        }
+                      }}
+                      className="p-1.5 rounded-lg text-rose-500 bg-rose-50 hover:bg-rose-105 transition-colors"
+                      title="حذف القسم"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -832,7 +972,7 @@ export default function AdminDashboard({
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-2xl text-right">
             <h3 className="font-extrabold text-slate-900 text-base mb-4 flex items-center gap-2">
               <PlusCircle className="h-5 w-5 text-rose-500" />
-              <span>إضافة برنامج أو كورسات تدريبية جديدة</span>
+              <span>{editingCourse ? `تعديل البرنامج التدريبي: ${editingCourse.title}` : 'إضافة برنامج أو كورسات تدريبية جديدة'}</span>
             </h3>
 
             <form onSubmit={handleSubmitCourse} className="space-y-4">
@@ -941,64 +1081,88 @@ export default function AdminDashboard({
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-end">
+              <div className="pt-2 flex justify-end gap-2">
+                {editingCourse && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEditCourse}
+                    className="bg-slate-200 text-slate-700 font-bold px-6 py-2.5 rounded-xl text-xs hover:bg-slate-300 transition-all shadow"
+                  >
+                    إلغاء التعديل
+                  </button>
+                )}
                 <button
                   type="submit"
-                  className="bg-slate-900 text-rose-450 hover:bg-slate-805 font-bold px-6 py-2.5 rounded-xl text-xs shadow-md transition-all text-amber-400"
+                  className="bg-slate-900 hover:bg-slate-805 font-bold px-6 py-2.5 rounded-xl text-xs shadow-md transition-all text-amber-400"
                 >
-                  تأكيد وحفظ البرنامج التدريبي
+                  {editingCourse ? 'حفظ التعديلات' : 'تأكيد وحفظ البرنامج التدريبي'}
                 </button>
               </div>
             </form>
           </div>
 
-          {/* List of courses and deletion triggers */}
-          <div className="space-y-4" id="courses-inventory-list">
-            <h3 className="font-extrabold text-slate-900 text-base">جرد قائمة الكورسات التدريبية الحالية ({courses.length})</h3>
-            
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm" id="table-courses">
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
-                    <tr>
-                      <th className="px-4 py-3">الكورس</th>
-                      <th className="px-4 py-3">القسم</th>
-                      <th className="px-4 py-3">المدرب</th>
-                      <th className="px-4 py-3">المستوى والمدة</th>
-                      <th className="px-4 py-3">عمليات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-normal text-slate-650">
-                    {courses.map((cr) => {
-                      const parentCat = categories.find(c => c.id === cr.categoryId);
-                      return (
-                        <tr key={cr.id} className="hover:bg-slate-55/40">
-                          <td className="px-4 py-3 font-semibold text-slate-900">{cr.title}</td>
-                          <td className="px-4 py-3">{parentCat ? parentCat.name : cr.categoryId}</td>
-                          <td className="px-4 py-3">{cr.instructor}</td>
-                          <td className="px-4 py-3">
-                            <span className="bg-amber-500/10 text-amber-705 px-2 py-0.5 rounded text-[10px] font-bold inline-block ml-1">{cr.level}</span>
-                            <span>{cr.duration}</span>
-                          </td>
-                          <td className="px-4 py-3">
+          {/* List of existing Courses with delete and edit buttons */}
+          <div className="space-y-4" id="courses-inventory">
+            <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+              <FolderOpen className="h-5 w-5 text-rose-500" />
+              <span>جرد وإحصاء الكورسات الحالية المدرجة بالجامعة الاكاديمية</span>
+            </h3>
+
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden text-right">
+              <table className="w-full text-right text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
+                    <th className="px-4 py-3 text-right">اسم البرنامج التدريبي الكورس</th>
+                    <th className="px-4 py-3 text-right">القسم المستضيف</th>
+                    <th className="px-4 py-3 text-right">المدرب</th>
+                    <th className="px-4 py-3 text-right">المستوى</th>
+                    <th className="px-4 py-3 text-right">المدة المقدرة</th>
+                    <th className="px-4 py-3 text-right w-16">إدارة</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {courses.map((cr) => {
+                    const parentCatName = categories.find(c => c.id === cr.categoryId)?.name || 'غير معروف';
+                    return (
+                      <tr key={cr.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 truncate max-w-[200px] font-medium text-slate-900">{cr.title}</td>
+                        <td className="px-4 py-3 text-slate-500">{parentCatName}</td>
+                        <td className="px-4 py-3 text-slate-500">{cr.instructor}</td>
+                        <td className="px-4 py-3">
+                          <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                            {cr.level}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-500">{cr.duration}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1.5 shrink-0">
+                            <button
+                              onClick={() => handleStartEditCourse(cr)}
+                              type="button"
+                              className="text-blue-600 hover:text-blue-800 bg-blue-50 p-1.5 rounded transition-all"
+                              title="تعديل هذا الكورس"
+                            >
+                              <Settings className="h-3.5 w-3.5" />
+                            </button>
                             <button
                               onClick={() => {
                                 if (confirm(`هل تبتغي حذف كورس (${cr.title}) بالكامل من كافة الجداول؟ هذا الإجراء لا يمكن التراجع عنه.`)) {
                                   onDeleteCourse(cr.id);
                                 }
                               }}
+                              type="button"
                               className="text-rose-500 hover:text-rose-700 bg-rose-50 p-1.5 rounded transition-all"
                               title="حذف الكورس"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1012,7 +1176,7 @@ export default function AdminDashboard({
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-2xl text-right">
             <h3 className="font-extrabold text-slate-900 text-base mb-4 flex items-center gap-2">
               <PlusCircle className="h-5 w-5 text-emerald-500" />
-              <span>أدوات رفع وإقحام المحاضرات</span>
+              <span>{editingLesson ? `تعديل المحاضرة: ${editingLesson.title}` : 'أدوات رفع وإقحام المحاضرات'}</span>
             </h3>
 
             <form onSubmit={handleSubmitLesson} className="space-y-4">
@@ -1106,12 +1270,21 @@ export default function AdminDashboard({
                 />
               </div>
 
-              <div className="pt-2 flex justify-end">
+              <div className="pt-2 flex justify-end gap-2">
+                {editingLesson && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEditLesson}
+                    className="bg-slate-200 text-slate-700 font-bold px-6 py-2.5 rounded-xl text-xs hover:bg-slate-300 transition-all shadow"
+                  >
+                    إلغاء التعديل
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="bg-slate-900 text-emerald-450 hover:bg-slate-805 font-bold px-6 py-2.5 rounded-xl text-xs transition-all shadow-md text-amber-450"
                 >
-                  رفع ونشر المحاضرة الجديدة
+                  {editingLesson ? 'حفظ التعديلات واعتراض التخزين' : 'رفع ونشر المحاضرة الجديدة'}
                 </button>
               </div>
             </form>
@@ -1148,7 +1321,7 @@ export default function AdminDashboard({
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {(lessons[lessonCourseId] || []).map((lesson) => (
-                        <tr key={lesson.id} className="hover:bg-slate-50/50 transition-colors">
+                        <tr key={lesson.id} className="hover:bg-slate-55/40 transition-colors">
                           <td className="py-3 pr-2 font-semibold text-slate-800">
                             <span className="flex items-center gap-2">
                               {lesson.type === 'video' && <Video className="h-4 w-4 text-amber-500 shrink-0" />}
@@ -1180,14 +1353,24 @@ export default function AdminDashboard({
                             )}
                           </td>
                           <td className="py-3 pl-2 text-left">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteLessonPress(lesson.id, lesson.title)}
-                              className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer animate-none"
-                              title="حذف المحاضرة نهائياً"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            <div className="flex gap-1.5 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditLesson(lesson)}
+                                className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                                title="تعديل المحاضرة"
+                              >
+                                <Settings className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteLessonPress(lesson.id, lesson.title)}
+                                className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                                title="حذف المحاضرة نهائياً"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

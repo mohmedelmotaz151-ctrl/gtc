@@ -85,22 +85,26 @@ service cloud.firestore {
 
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if isValidId(categoryId) && isValidCategory(request.resource.data);
+      allow create, update: if isValidId(categoryId) && isValidCategory(request.resource.data);
+      allow delete: if true;
     }
 
     match /courses/{courseId} {
       allow read: if true;
-      allow write: if isValidId(courseId) && isValidCourse(request.resource.data);
+      allow create, update: if isValidId(courseId) && isValidCourse(request.resource.data);
+      allow delete: if true;
     }
 
     match /lessons/{lessonId} {
       allow read: if true;
-      allow write: if isValidId(lessonId) && isValidLesson(request.resource.data);
+      allow create, update: if isValidId(lessonId) && isValidLesson(request.resource.data);
+      allow delete: if true;
     }
 
     match /users/{userId} {
       allow read: if true;
-      allow write: if isValidId(userId) && isValidUser(request.resource.data);
+      allow create, update: if isValidId(userId) && isValidUser(request.resource.data);
+      allow delete: if true;
     }
 
     match /progress/{progressId} {

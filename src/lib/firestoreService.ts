@@ -194,6 +194,15 @@ export async function saveUserToDb(user: UserType): Promise<void> {
   }
 }
 
+export async function deleteUserFromDb(id: string): Promise<void> {
+  const docPath = `users/${id}`;
+  try {
+    await deleteDoc(doc(db, 'users', id));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, docPath);
+  }
+}
+
 // ==========================================
 // PROGRESS OPERATIONS
 // ==========================================

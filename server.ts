@@ -12,6 +12,7 @@ import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Load environment variables
 dotenv.config();
@@ -186,6 +187,52 @@ app.get('/api/cloudinary/status', (req, res) => {
     cloudName,
     apiKey: apiKey ? `***${apiKey.slice(-4)}` : null
   });
+});
+
+// API endpoint to generate a presigned PUT URL for uploading directly to Cloudflare R2 from the client-side
+app.post('/api/upload/presign', async (req, res) => {
+  try {
+    const { filename, filetype } = req.body;
+    if (!filename) {
+      return res.status(400).json({ error: 'اسم الملف مطلوب.' });
+    }
+
+    const client = getR2Client();
+    const bucketName = process.env.R2_BUCKET_NAME || 'gcc-academy-videos';
+    
+    // Cleanup filenames
+    const safeName = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const isVideo = filetype?.startsWith('video/') || filename.endsWith('.mp4') || filename.endsWith('.mov') || filename.endsWith('.avi');
+    const key = isVideo ? `videos/${Date.now()}-${safeName}` : `documents/${Date.now()}-${safeName}`;
+
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      ContentType: filetype || 'application/octet-stream',
+    });
+
+    const uploadUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
+
+    let publicUrl = process.env.R2_PUBLIC_URL || '';
+    if (!publicUrl) {
+      publicUrl = `https://pub-yourdomain.r2.dev`;
+    }
+    const baseUrl = publicUrl.endsWith('/') ? publicUrl.slice(0, -1) : publicUrl;
+    const fileUrl = `${baseUrl}/${key}`;
+
+    return res.json({
+      success: true,
+      uploadUrl,
+      fileUrl,
+      key
+    });
+  } catch (err: any) {
+    console.error('Error in /api/upload/presign:', err.message);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'بيانات الاتصال بـ Cloudflare R2 ناقصة أو غير مُعرّفة في متغيرات البيئة.' 
+    });
+  }
 });
 
 // API endpoint for Media file uploading (with intelligent routing for videos <= 15MB to Cloudinary, and > 15MB to Cloudflare R2)

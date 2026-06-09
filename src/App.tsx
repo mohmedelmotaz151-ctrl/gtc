@@ -52,6 +52,7 @@ import {
   saveLessonsBatchToDb,
   fetchUsersFromDb,
   saveUserToDb,
+  deleteUserFromDb,
   fetchProgressFromDb,
   saveProgressRecordToDb,
   deleteProgressRecordFromDb,
@@ -560,6 +561,32 @@ export default function App() {
     deleteCategoryFromDb(catId);
   };
 
+  const handleEditCategory = (updatedCat: Category) => {
+    const updated = categories.map(cat => cat.id === updatedCat.id ? updatedCat : cat);
+    saveCategories(updated);
+  };
+
+  const handleEditCourse = (updatedCourse: Course) => {
+    const updated = courses.map(c => c.id === updatedCourse.id ? updatedCourse : c);
+    saveCourses(updated);
+  };
+
+  const handleEditLesson = (courseId: string, lessonId: string, updatedLesson: Lesson) => {
+    const courseLessons = lessons[courseId] || [];
+    const updated = courseLessons.map(l => l.id === lessonId ? updatedLesson : l);
+    const updatedLsnMap = {
+      ...lessons,
+      [courseId]: updated
+    };
+    saveLessons(updatedLsnMap);
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    const filtered = users.filter(u => u.id !== userId);
+    saveUsers(filtered);
+    deleteUserFromDb(userId);
+  };
+
   const handleStartStudyCourse = (course: Course) => {
     const isEnrolled = currentUser && (
       currentUser.role === 'admin' || 
@@ -665,6 +692,10 @@ export default function App() {
             onDeleteCategory={handleDeleteCategory}
             onDeleteLesson={handleDeleteLesson}
             onSaveUsers={saveUsers}
+            onEditCategory={handleEditCategory}
+            onEditCourse={handleEditCourse}
+            onEditLesson={handleEditLesson}
+            onDeleteUser={handleDeleteUser}
           />
 
         ) : unregisteredCourse ? (

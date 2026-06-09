@@ -46,49 +46,97 @@ export default function FileUploader({
     setUploadedUrl(null);
     setFileName(file.name);
 
-    // No limit checks are applied to make uploads unlimited
-    const isVideo = file.type.startsWith('video/') || file.name.endsWith('.mp4') || file.name.endsWith('.mov') || file.name.endsWith('.avi');
-    const formData = new FormData();
-    formData.append('file', file);
+    let uploadedSuccessfully = false;
 
+    // 1. Try to fetch presigned URL and upload directly to Cloudflare R2 from the browser
     try {
-      const response = await fetch('/api/upload', {
+      console.log(`Attempting direct browser upload to Cloudflare R2 for: ${file.name}`);
+      const presignRes = await fetch('/api/upload/presign', {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          filetype: file.type
+        })
       });
 
-      if (!response.ok) {
-        let errorMessage = 'فشل في رفع الملف إلى السيرفر.';
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          } else {
-            const text = await response.text();
-            if (response.status === 413) {
-              errorMessage = 'حجم الملف المرفوع كبير جداً ويتجاوز حدود الرفع القصوى المسموحة من شبكة الخادم.';
-            } else {
-              errorMessage = `خطأ في السيرفر (${response.status}): ${text.slice(0, 80)}`;
-            }
-          }
-        } catch (e) {
-          errorMessage = `فشل الرفع برمز الاستجابة (${response.status})`;
-        }
-        throw new Error(errorMessage);
-      }
+      if (presignRes.ok) {
+        const presignData = await presignRes.json();
+        if (presignData.success && presignData.uploadUrl) {
+          console.log('Successfully generated presigned R2 URL. Commencing direct client upload.');
+          
+          const uploadRes = await fetch(presignData.uploadUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': file.type || 'application/octet-stream'
+            },
+            body: file
+          });
 
-      const data = await response.json();
-      if (data.success && data.url) {
-        setUploadedUrl(data.url);
-        onUploadSuccess(data.url);
-      } else {
-        throw new Error('لم يرجع السيرفر رابطاً صالحاً.');
+          if (uploadRes.ok) {
+            console.log('Direct Cloudflare R2 upload succeeded!', presignData.fileUrl);
+            setUploadedUrl(presignData.fileUrl);
+            onUploadSuccess(presignData.fileUrl);
+            uploadedSuccessfully = true;
+          } else {
+            console.warn(`Direct PUT upload failed with status (${uploadRes.status}). Falling back to backend parser...`);
+          }
+        }
       }
-    } catch (err: any) {
-      console.warn('Upload handler handled warning:', err.message || err);
-      setUploadError(err.message || 'وقع عطل أثناء استدعاء سيرفر الرفع.');
-    } finally {
+    } catch (r2ClientError: any) {
+      console.warn('Direct upload attempt to Cloudflare R2 failed due to CORS, network, or invalid credential config. Redirecting to server fallback...', r2ClientError.message || r2ClientError);
+    }
+
+    // 2. Server-side proxy upload fallback if direct R2 upload failed or R2 option is disabled
+    if (!uploadedSuccessfully) {
+      console.log('Starting backup upload via server fallback...');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          let errorMessage = 'فشل في رفع الملف إلى السيرفر.';
+          try {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const errorData = await response.json();
+              errorMessage = errorData.error || errorData.message || errorMessage;
+            } else {
+              const text = await response.text();
+              if (response.status === 413) {
+                errorMessage = 'حجم الملف المرفوع كبير جداً ويتجاوز حدود الرفع القصوى المسموحة من شبكة الخادم.';
+              } else {
+                errorMessage = `خطأ في السيرفر (${response.status}): ${text.slice(0, 80)}`;
+              }
+            }
+          } catch (e) {
+            errorMessage = `فشل الرفع برمز الاستجابة (${response.status})`;
+          }
+          throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        if (data.success && data.url) {
+          setUploadedUrl(data.url);
+          onUploadSuccess(data.url);
+        } else {
+          throw new Error('لم يرجع السيرفر رابطاً صالحاً.');
+        }
+      } catch (err: any) {
+        console.warn('Upload handler handled warning:', err.message || err);
+        setUploadError(err.message || 'وقع عطل أثناء استدعاء سيرفر الرفع.');
+      } finally {
+        setIsUploading(false);
+        setDragOver(false);
+      }
+    } else {
       setIsUploading(false);
       setDragOver(false);
     }
