@@ -108,7 +108,7 @@ const memoryStorage = multer.memoryStorage();
 const uploadHandler = multer({
   storage: memoryStorage,
   limits: {
-    fileSize: 100 * 1024 * 1024 // 100MB max limit to support video lecture uploads
+    fileSize: 5120 * 1024 * 1024 // 5GB max limit to support high-density video lecture uploads
   }
 });
 
@@ -203,6 +203,16 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
                     req.file.originalname.endsWith('.mov') || 
                     req.file.originalname.endsWith('.avi');
     const fileSize = req.file.size;
+    const limitVideo = 5120 * 1024 * 1024; // 5 GB
+    const limitDocument = 20 * 1024 * 1024; // 20 MB
+
+    if (isVideo && fileSize > limitVideo) {
+      return res.status(400).json({ error: 'حجم الفيديو المرفوع كبير جداً ويتجاوز الحدود المسموحة (الحد الأقصى هو 5 جيجابايت).' });
+    }
+    if (!isVideo && fileSize > limitDocument) {
+      return res.status(400).json({ error: 'حجم الملف المرفوع كبير جداً ويتجاوز الحدود المسموحة (الحد الأقصى هو 20 ميجابايت للمستندات والصور).' });
+    }
+
     const limit15MB = 15 * 1024 * 1024;
 
     console.log(`Received file for upload: ${req.file.originalname} (${req.file.mimetype}), Size: ${fileSize} bytes`);
@@ -431,4 +441,8 @@ async function bootstrapServer() {
   });
 }
 
-bootstrapServer();
+if (!process.env.VERCEL) {
+  bootstrapServer();
+}
+
+export default app;
