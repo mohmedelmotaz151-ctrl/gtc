@@ -97,6 +97,15 @@ export default function InteractivePlayer({
   // Helper to dynamically resolve public or secure redirected R2 stream links
   const getPlayableVideoUrl = React.useCallback((url: string | undefined): string => {
     if (!url) return '';
+    // Skip external public CDNs, mixkit previews, and static assets
+    if (
+      url.includes('mixkit.co') || 
+      url.includes('cloudinary.com') || 
+      url.includes('unsplash.com') || 
+      url.includes('imgix.net')
+    ) {
+      return url;
+    }
     if (url.includes('/videos/') || url.includes('/documents/')) {
       let key = '';
       if (url.includes('/videos/')) {
@@ -113,6 +122,22 @@ export default function InteractivePlayer({
     return url;
   }, []);
 
+  // Keep track of all created Blob URLs so we can clean them up on unmount without breaking active views
+  const createdBlobUrlsRef = React.useRef<string[]>([]);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup all blob URLs on unmount to avoid memory leaks
+      createdBlobUrlsRef.current.forEach(url => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.warn('Error revoking blob URL on unmount:', e);
+        }
+      });
+    };
+  }, []);
+
   // Blob loading state for PDF to bypass target="_blank" sandbox & reverse proxy authentication barriers
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [loadingPdfBlob, setLoadingPdfBlob] = useState(false);
@@ -125,7 +150,6 @@ export default function InteractivePlayer({
     }
 
     let isMounted = true;
-    let createdUrl: string | null = null;
     setLoadingPdfBlob(true);
 
     const playableUrl = getPlayableVideoUrl(activeLesson.videoUrl);
@@ -140,22 +164,20 @@ export default function InteractivePlayer({
       .then(blob => {
         if (!isMounted) return;
         const objectUrl = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-        createdUrl = objectUrl;
+        createdBlobUrlsRef.current.push(objectUrl);
         setPdfBlobUrl(objectUrl);
         setLoadingPdfBlob(false);
       })
       .catch(err => {
         console.warn('PDF blob loading caution (falling back to direct CDN link):', err);
         if (!isMounted) return;
-        setPdfBlobUrl(activeLesson.videoUrl || null);
+        // Strip out the custom parsing if the proxy doesn't support the file directly
+        setPdfBlobUrl(playableUrl);
         setLoadingPdfBlob(false);
       });
 
     return () => {
       isMounted = false;
-      if (createdUrl) {
-        URL.revokeObjectURL(createdUrl);
-      }
     };
   }, [activeLesson?.id, activeLesson?.videoUrl]);
 
