@@ -404,15 +404,32 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
       return localUrl;
     };
 
-    // Routing Logic to satisfy Cloudflare R2 requirement:
-    if (isVideo && fileSize > limit15MB) {
-      console.log(`Video sized > 15MB (${(fileSize / (1024 * 1024)).toFixed(2)} MB). Directing upload to Cloudflare R2...`);
+    // Routing Logic: Prioritize Cloudflare R2 for all file types if R2 credentials are configured.
+    const isImage = req.file.mimetype.startsWith('image/');
+    const isPdf = req.file.mimetype === 'application/pdf' || req.file.originalname.endsWith('.pdf');
+
+    let hasR2 = false;
+    try {
+      hasR2 = !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY);
+    } catch (e) {}
+
+    if (hasR2) {
+      console.log(`Cloudflare R2 is configured. Primary routing to Cloudflare R2 for file: ${req.file.originalname} (${req.file.mimetype})`);
       try {
         const client = getR2Client();
         const bucketName = process.env.R2_BUCKET_NAME || 'gcc-academy-videos';
         // Cleanup filenames to prevent layout-breaks or uri corruption
         const safeName = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const key = `videos/${Date.now()}-${safeName}`;
+        
+        let folderPrefix = 'others';
+        if (isVideo) {
+          folderPrefix = 'videos';
+        } else if (isImage) {
+          folderPrefix = 'images';
+        } else if (isPdf) {
+          folderPrefix = 'documents';
+        }
+        const key = `${folderPrefix}/${Date.now()}-${safeName}`;
 
         const uploadParams = {
           Bucket: bucketName,
@@ -432,7 +449,7 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
         const baseUrl = publicUrl.endsWith('/') ? publicUrl.slice(0, -1) : publicUrl;
         const fileUrl = `${baseUrl}/${key}`;
 
-        console.log(`Cloudflare R2 Direct Upload successful! URL: ${fileUrl}`);
+        console.log(`Cloudflare R2 Direct Upload successful from system proxy! URL: ${fileUrl}`);
         return res.json({
           success: true,
           url: fileUrl,
@@ -442,59 +459,36 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
         });
 
       } catch (r2Error: any) {
-        console.warn(`Direct R2 upload failed or credentials omitted: ${r2Error.message}. Escalating fallback to Cloudinary...`);
-        // Fallback Option 1: Try Cloudinary anyway (some subscriptions allow higher limits)
-        try {
-          console.log(`Retrying via Cloudinary backup upload...`);
-          const cloudinaryResult = await uploadToCloudinary(req.file.buffer, req.file.mimetype, req.file.originalname);
-          console.log(`Cloudinary backup upload success! URL: ${cloudinaryResult.secure_url}`);
-          return res.json({
-            success: true,
-            url: cloudinaryResult.secure_url,
-            provider: 'cloudinary_fallback',
-            mimetype: req.file.mimetype,
-            size: fileSize
-          });
-        } catch (clError: any) {
-          console.warn(`Cloudinary backup also fails: ${clError.message}. Writing backup to local server disk...`);
-          const localUrl = saveLocalFallback(req.file);
-          return res.json({
-            success: true,
-            url: localUrl,
-            provider: 'local_dev_fallback',
-            mimetype: req.file.mimetype,
-            size: fileSize
-          });
-        }
+        console.warn(`Direct R2 upload from server proxy failed: ${r2Error.message}. Escalating fallback to Cloudinary...`);
       }
-    } else {
-      // If ≤ 15MB or it is not a video, upload directly to Cloudinary
-      console.log(`Routing file up to Cloudinary (either non-video or video <= 15MB)...`);
-      try {
-        const cloudinaryResult = await uploadToCloudinary(req.file.buffer, req.file.mimetype, req.file.originalname);
-        console.log('Cloudinary upload success. URL:', cloudinaryResult.secure_url);
+    }
 
-        return res.json({
-          success: true,
-          url: cloudinaryResult.secure_url,
-          provider: 'cloudinary',
-          resourceType: cloudinaryResult.resource_type,
-          duration: cloudinaryResult.duration,
-          format: cloudinaryResult.format,
-          publicId: cloudinaryResult.public_id,
-          size: fileSize
-        });
-      } catch (cloudinaryError: any) {
-        console.warn(`Direct Cloudinary upload failed: ${cloudinaryError.message}. Escalating local server fallback...`);
-        const localUrl = saveLocalFallback(req.file);
-        return res.json({
-          success: true,
-          url: localUrl,
-          provider: 'local_dev_fallback',
-          mimetype: req.file.mimetype,
-          size: fileSize
-        });
-      }
+    // Fallback or Non-R2 route: Try Cloudinary first, then Local Fallback
+    console.log(`Routing file to Cloudinary fallback...`);
+    try {
+      const cloudinaryResult = await uploadToCloudinary(req.file.buffer, req.file.mimetype, req.file.originalname);
+      console.log('Cloudinary upload success. URL:', cloudinaryResult.secure_url);
+
+      return res.json({
+        success: true,
+        url: cloudinaryResult.secure_url,
+        provider: 'cloudinary',
+        resourceType: cloudinaryResult.resource_type,
+        duration: cloudinaryResult.duration,
+        format: cloudinaryResult.format,
+        publicId: cloudinaryResult.public_id,
+        size: fileSize
+      });
+    } catch (cloudinaryError: any) {
+      console.warn(`Cloudinary upload failed: ${cloudinaryError.message}. Escalating local server fallback...`);
+      const localUrl = saveLocalFallback(req.file);
+      return res.json({
+        success: true,
+        url: localUrl,
+        provider: 'local_dev_fallback',
+        mimetype: req.file.mimetype,
+        size: fileSize
+      });
     }
 
   } catch (err: any) {
