@@ -157,7 +157,7 @@ export const INITIAL_LESSONS: Record<string, Lesson[]> = {
       title: 'محاضرة 1: مدخل وفلسفة السلامة والصحة المهنية',
       type: 'video',
       duration: '45 دقيقة',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-firefighter-putting-out-a-car-fire-40336-large.mp4', // Real Safety training trial video
+      mediaUrl: 'https://assets.mixkit.co/videos/preview/mixkit-firefighter-putting-out-a-car-fire-40336-large.mp4', // Real Safety training trial video
       description: 'أهمية توفير بيئة عمل آمنة، تاريخ تطور تشريعات إدارة السلامة، ودور مؤسسة الأوشا في تقليص إصابات حوادث وتكاليف المصانع.',
     },
     {
@@ -276,7 +276,7 @@ export const INITIAL_LESSONS: Record<string, Lesson[]> = {
       title: 'محاضرة 1: خصائص الغازات السامة الشائعة H2S وكاشفاتها',
       type: 'video',
       duration: '35 دقيقة',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-welder-at-work-in-a-factory-40071-large.mp4', // Real Industrial Worksite Safety trial video
+      mediaUrl: 'https://assets.mixkit.co/videos/preview/mixkit-welder-at-work-in-a-factory-40071-large.mp4', // Real Industrial Worksite Safety trial video
       description: 'كيفية عمل غاز كبريتيد الهيدروجين القاتل عديم الرائحة عند المستويات المرتفعة، وكيفية معايرة واستخدام كواشف الغاز الذكية المحمولة لعمال النفط.',
     },
     {
@@ -347,7 +347,7 @@ export const INITIAL_LESSONS: Record<string, Lesson[]> = {
       title: 'محاضرة 1: مقدمة لنشأة Six Sigma والبطاقة التعريفية للـ (DMAIC)',
       type: 'video',
       duration: '50 دقيقة',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-business-people-meeting-around-a-table-34301-large.mp4', // Six Sigma & Quality course trial video
+      mediaUrl: 'https://assets.mixkit.co/videos/preview/mixkit-business-people-meeting-around-a-table-34301-large.mp4', // Six Sigma & Quality course trial video
       description: 'فهم الفروقات الجوهرية والعملية في تطبيق فلسفة السيجما الستة، والتعرف عن قرب على المراحل الخمس لتحسين العمليات: Define, Measure, Analyze, Improve, Control.',
     },
     {
@@ -443,7 +443,7 @@ export const INITIAL_LESSONS: Record<string, Lesson[]> = {
       title: 'محاضرة 1: القوى الأربعة الأساسية المؤثرة في الطيران',
       type: 'video',
       duration: '40 دقيقة',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-airplane-taking-off-in-the-sunset-3091-large.mp4', // Aviation flying / Navigation trial video
+      mediaUrl: 'https://assets.mixkit.co/videos/preview/mixkit-airplane-taking-off-in-the-sunset-3091-large.mp4', // Aviation flying / Navigation trial video
       description: 'فهم القوى الفيزيائية الأربعة الرئيسية: الرفع (Lift)، والوزن (Weight)، والدفع (Thrust)، ومقاومة الهواء (Drag). كيف يتم التكيف والتحليق للطائرات.',
     },
     {
@@ -554,7 +554,7 @@ export const INITIAL_LESSONS: Record<string, Lesson[]> = {
       title: 'محاضرة 1: هيكلية وعمارة تطبيقات صفحة الويب الواحدة (SPA)',
       type: 'video',
       duration: '40 دقيقة',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-fingers-typing-on-a-computer-keyboard-4171-large.mp4', // Coding & Typing educational trial video
+      mediaUrl: 'https://assets.mixkit.co/videos/preview/mixkit-fingers-typing-on-a-computer-keyboard-4171-large.mp4', // Coding & Typing educational trial video
       description: 'نظرة معمقة حول الفارق الجوهري بين المواقع القديمة وتطبيقات SPA، وكيف يحسن استخدام React من تجربة المستخدم عبر التحميل اللامتناهي وإعادة تحديث مكونات الصفحة الجزئية.',
     },
     {
@@ -683,7 +683,7 @@ export const INITIAL_LESSONS: Record<string, Lesson[]> = {
       title: 'محاضرة 1: الدورة المحاسبية الكاملة ومبدأ القيد المزدوج',
       type: 'video',
       duration: '45 دقيقة',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-businessman-working-on-a-calculator-41669-large.mp4', // Accounting/Calculator interactive trial video
+      mediaUrl: 'https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-businessman-working-on-a-calculator-41669-large.mp4', // Accounting/Calculator interactive trial video
       description: 'شرح مبسط ومقنع لمعنى المدين والدائن في ميزان المراجعة، ومطابقة الأصول والخصوم وحماية المنشأة من الأخطاء والسرقات الدفترية.',
     },
     {

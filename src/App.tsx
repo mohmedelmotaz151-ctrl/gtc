@@ -478,7 +478,7 @@ export default function App() {
     });
   };
 
-  const handleAddLesson = (courseId: string, newLsn: { title: string; type: 'video' | 'pdf' | 'presentation' | 'quiz'; duration: string; description: string; url?: string }) => {
+  const handleAddLesson = (courseId: string, newLsn: { title: string; type: 'video' | 'pdf' | 'presentation' | 'quiz'; duration: string; description: string; mediaUrl?: string }) => {
     const courseLessons = lessons[courseId] || [];
     const lessonId = `lesson-${Date.now()}`;
     
@@ -488,7 +488,7 @@ export default function App() {
       title: newLsn.title,
       type: newLsn.type,
       duration: newLsn.duration,
-      videoUrl: newLsn.url,
+      mediaUrl: newLsn.mediaUrl,
       description: newLsn.description,
       pdfContent: newLsn.type === 'pdf' ? newLsn.description : undefined,
       slides: newLsn.type === 'presentation' ? [

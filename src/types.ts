@@ -35,7 +35,7 @@ export interface Lesson {
   title: string;
   type: 'video' | 'pdf' | 'presentation' | 'quiz';
   duration: string; // e.g. "15 دقيقة"
-  videoUrl?: string; // sample video or embedded code
+  mediaUrl?: string; // sample video, pdf, or embedded code
   description?: string;
   pdfContent?: string; // textual representation to show or key summaries
   slides?: Array<{ title: string; content: string[] }>;

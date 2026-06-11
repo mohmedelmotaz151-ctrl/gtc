@@ -95,7 +95,7 @@ export default function InteractivePlayer({
   const activeLesson = lessons[activeLessonIndex] || null;
 
   // Helper to dynamically resolve public or secure redirected R2 stream links
-  const getPlayableVideoUrl = React.useCallback((url: string | undefined): string => {
+  const getPlayableMediaUrl = React.useCallback((url: string | undefined): string => {
     if (!url) return '';
     // Skip external public CDNs, mixkit previews, and static assets
     if (
@@ -143,7 +143,7 @@ export default function InteractivePlayer({
   const [loadingPdfBlob, setLoadingPdfBlob] = useState(false);
 
   useEffect(() => {
-    if (activeLesson?.type !== 'pdf' || !activeLesson?.videoUrl) {
+    if (activeLesson?.type !== 'pdf' || !activeLesson?.mediaUrl) {
       setPdfBlobUrl(null);
       setLoadingPdfBlob(false);
       return;
@@ -152,7 +152,7 @@ export default function InteractivePlayer({
     let isMounted = true;
     setLoadingPdfBlob(true);
 
-    const playableUrl = getPlayableVideoUrl(activeLesson.videoUrl);
+    const playableUrl = getPlayableMediaUrl(activeLesson.mediaUrl);
 
     fetch(playableUrl)
       .then(response => {
@@ -179,7 +179,7 @@ export default function InteractivePlayer({
     return () => {
       isMounted = false;
     };
-  }, [activeLesson?.id, activeLesson?.videoUrl]);
+  }, [activeLesson?.id, activeLesson?.mediaUrl]);
 
   // Track video mock timeline (fallback if no real video element is mounted)
   useEffect(() => {
@@ -631,11 +631,11 @@ export default function InteractivePlayer({
                       </div>
 
                       {/* Real HTML5 Video element or simulation fallback */}
-                      {activeLesson?.videoUrl && !videoPlayError ? (
+                      {activeLesson?.mediaUrl && !videoPlayError ? (
                         <video
                           key={activeLesson.id}
                           ref={videoRef}
-                          src={getPlayableVideoUrl(activeLesson.videoUrl)}
+                          src={getPlayableMediaUrl(activeLesson.mediaUrl)}
                           className="w-full h-full object-contain"
                           playsInline
                           preload="metadata"
@@ -680,7 +680,7 @@ export default function InteractivePlayer({
                           </div>
                           <div className="flex gap-2">
                             <a 
-                              href={getPlayableVideoUrl(activeLesson.videoUrl)} 
+                              href={getPlayableMediaUrl(activeLesson.mediaUrl)} 
                               target="_blank" 
                               rel="noreferrer"
                               className="bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition-all text-[11px] cursor-pointer"
@@ -828,7 +828,7 @@ export default function InteractivePlayer({
                   <div className="space-y-6" id="pdf-lesson-content">
                     
                     {/* Embedded PDF File Viewer */}
-                    {activeLesson?.videoUrl ? (
+                    {activeLesson?.mediaUrl ? (
                       <div className="space-y-4">
                         <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
                           <div className="flex items-center gap-2">
@@ -844,7 +844,7 @@ export default function InteractivePlayer({
                               </div>
                             ) : (
                               <a 
-                                href={pdfBlobUrl || getPlayableVideoUrl(activeLesson.videoUrl)} 
+                                href={pdfBlobUrl || getPlayableMediaUrl(activeLesson.mediaUrl)} 
                                 download={`${activeLesson.title}.pdf`}
                                 className="bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition-all text-[11px] shadow-sm cursor-pointer"
                               >
@@ -864,7 +864,7 @@ export default function InteractivePlayer({
                         ) : (
                           <div className="relative rounded-2xl border-2 border-slate-200 overflow-hidden bg-white shadow-sm h-[550px] w-full">
                             <iframe
-                              src={pdfBlobUrl ? pdfBlobUrl : (getPlayableVideoUrl(activeLesson.videoUrl) ? `${getPlayableVideoUrl(activeLesson.videoUrl)}#toolbar=1&navpanes=0&scrollbar=1` : '')}
+                              src={pdfBlobUrl ? pdfBlobUrl : (getPlayableMediaUrl(activeLesson.mediaUrl) ? `${getPlayableMediaUrl(activeLesson.mediaUrl)}#toolbar=1&navpanes=0&scrollbar=1` : '')}
                               className="w-full h-full border-0"
                               title={activeLesson.title}
                               referrerPolicy="no-referrer"

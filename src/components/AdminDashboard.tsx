@@ -38,7 +38,7 @@ interface AdminDashboardProps {
   progress: LessonProgress[];
   onAddCategory: (category: { name: string; image: string; iconName: string }) => void;
   onAddCourse: (course: { categoryId: string; title: string; description: string; image: string; instructor: string; duration: string; level: 'مبتدئ' | 'متوسط' | 'متقدم' }) => void;
-  onAddLesson: (courseId: string, lesson: { title: string; type: 'video' | 'pdf' | 'presentation' | 'quiz'; duration: string; description: string; url?: string }) => void;
+  onAddLesson: (courseId: string, lesson: { title: string; type: 'video' | 'pdf' | 'presentation' | 'quiz'; duration: string; description: string; mediaUrl?: string }) => void;
   onDeleteCourse: (courseId: string) => void;
   onDeleteCategory: (categoryId: string) => void;
   onDeleteLesson?: (courseId: string, lessonId: string) => void;
@@ -570,7 +570,7 @@ export default function AdminDashboard({
           type: lessonType,
           duration: lessonDuration,
           description: lessonDesc,
-          videoUrl: lessonUrl || undefined,
+          mediaUrl: lessonUrl || undefined,
           pdfContent: lessonType === 'pdf' ? lessonDesc : undefined,
           slides: lessonType === 'presentation' ? [
             { title: lessonTitle, content: ['محتوى الدرس التوضيحي', lessonDesc] }
@@ -585,7 +585,7 @@ export default function AdminDashboard({
         type: lessonType,
         duration: lessonDuration,
         description: lessonDesc,
-        url: lessonUrl || undefined
+        mediaUrl: lessonUrl || undefined
       });
       alert('تمت إضافة المحاضرة الجديدة وضمها تحت فهرس الكورس المحدد بنجاح.');
     }
@@ -602,7 +602,7 @@ export default function AdminDashboard({
     setLessonType(lesson.type);
     setLessonDuration(lesson.duration);
     setLessonDesc(lesson.description);
-    setLessonUrl(lesson.videoUrl || '');
+    setLessonUrl(lesson.mediaUrl || '');
     document.getElementById('lessons-tab-content')?.scrollIntoView({ behavior: 'smooth' });
   };
 
@@ -1272,7 +1272,7 @@ export default function AdminDashboard({
                       if (editingLesson && onEditLesson) {
                         onEditLesson(lessonCourseId, editingLesson.id, {
                           ...editingLesson,
-                          videoUrl: url,
+                          mediaUrl: url,
                           pdfContent: lessonType === 'pdf' ? lessonDesc : undefined,
                         });
                       }
@@ -1364,14 +1364,14 @@ export default function AdminDashboard({
                           </td>
                           <td className="py-3 px-3 text-slate-500 font-mono text-[11px]">{lesson.duration || 'غير محدد'}</td>
                           <td className="py-3 px-3 text-slate-500 text-[11px] max-w-[150px] truncate">
-                            {lesson.videoUrl ? (
+                            {lesson.mediaUrl ? (
                               <a 
-                                href={lesson.videoUrl} 
+                                href={lesson.mediaUrl} 
                                 target="_blank" 
                                 rel="noreferrer" 
                                 className="text-amber-600 hover:underline font-mono"
                               >
-                                {lesson.videoUrl}
+                                {lesson.mediaUrl}
                               </a>
                             ) : (
                               <span className="text-slate-350 select-none">لا يوجد ملف خارجي</span>
