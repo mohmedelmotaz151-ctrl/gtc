@@ -317,7 +317,7 @@ app.post('/api/upload/presign', async (req, res) => {
 
     let publicUrl = process.env.R2_PUBLIC_URL || '';
     if (!publicUrl) {
-      publicUrl = `https://pub-yourdomain.r2.dev`;
+      publicUrl = `https://pub-9e3616bcd27644489c80a1831756eb22.r2.dev`;
     }
     const baseUrl = publicUrl.endsWith('/') ? publicUrl.slice(0, -1) : publicUrl;
     const fileUrl = `${baseUrl}/${key}`;
@@ -444,7 +444,7 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
         let publicUrl = process.env.R2_PUBLIC_URL || '';
         if (!publicUrl) {
           // Default R2 dev subdomain format as fallback
-          publicUrl = `https://pub-yourdomain.r2.dev`;
+          publicUrl = `https://pub-9e3616bcd27644489c80a1831756eb22.r2.dev`;
         }
         const baseUrl = publicUrl.endsWith('/') ? publicUrl.slice(0, -1) : publicUrl;
         const fileUrl = `${baseUrl}/${key}`;
