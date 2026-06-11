@@ -869,7 +869,15 @@ export default function AdminDashboard({
                     id="category-image-uploader"
                     accept="image/*"
                     label="رفع صورة غلاف القسم إلى السيرفر السحابي:"
-                    onUploadSuccess={(url) => setCatImage(url)}
+                    onUploadSuccess={(url) => {
+                      setCatImage(url);
+                      if (editingCategory && onEditCategory) {
+                        onEditCategory({
+                          ...editingCategory,
+                          image: url,
+                        });
+                      }
+                    }}
                     helperText="اسحب صورة القسم هنا للرفع التلقائي"
                   />
                 </div>
@@ -1056,7 +1064,15 @@ export default function AdminDashboard({
                     id="course-image-uploader"
                     accept="image/*"
                     label="رفع غلاف الكورس سحابياً:"
-                    onUploadSuccess={(url) => setCourseImg(url)}
+                    onUploadSuccess={(url) => {
+                      setCourseImg(url);
+                      if (editingCourse && onEditCourse) {
+                        onEditCourse({
+                          ...editingCourse,
+                          image: url,
+                        });
+                      }
+                    }}
                     helperText="اسحب صورة غلاف الدبلومة للرفع والتأمين"
                   />
                 </div>
@@ -1251,7 +1267,16 @@ export default function AdminDashboard({
                     id="lesson-media-uploader"
                     accept={lessonType === 'video' ? 'video/*' : lessonType === 'pdf' ? 'application/pdf' : 'image/*,application/*'}
                     label={`رفع ملف المحاضرة (${lessonType === 'video' ? 'فيديو' : lessonType === 'pdf' ? 'PDF' : 'مستند/عرض تقديمي'}) سحابياً لـ Cloudinary:`}
-                    onUploadSuccess={(url) => setLessonUrl(url)}
+                    onUploadSuccess={(url) => {
+                      setLessonUrl(url);
+                      if (editingLesson && onEditLesson) {
+                        onEditLesson(lessonCourseId, editingLesson.id, {
+                          ...editingLesson,
+                          videoUrl: url,
+                          pdfContent: lessonType === 'pdf' ? lessonDesc : undefined,
+                        });
+                      }
+                    }}
                     helperText={`اسحب ملف الـ ${lessonType === 'video' ? 'فيديو المباشر' : 'مستند'} هنا للرفع الآمن`}
                   />
                 </div>

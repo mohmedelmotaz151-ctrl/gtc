@@ -11,7 +11,7 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Load environment variables
@@ -218,6 +218,33 @@ app.post('/api/cloudinary/sign', (req, res) => {
   } catch (err: any) {
     console.error('Error generating Cloudinary upload signature:', err);
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// API endpoint to dynamically generate a presigned GET URL for secure streaming from private Cloudflare R2 bucket
+app.get('/api/video/stream', async (req, res) => {
+  try {
+    const key = req.query.key as string;
+    if (!key) {
+      return res.status(400).send('مفتاح الملف مطلوب.');
+    }
+
+    const client = getR2Client();
+    const bucketName = process.env.R2_BUCKET_NAME || 'gcc-academy-videos';
+
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+    });
+
+    // Generate a secure GET signature with 12 hours expiration to allow reliable buffered streaming/seeking
+    const signedUrl = await getSignedUrl(client, command, { expiresIn: 43200 });
+    
+    // Redirect the browser directly to the secure Cloudflare R2 stream
+    res.redirect(302, signedUrl);
+  } catch (err: any) {
+    console.error('Error in /api/video/stream redirect generation:', err.message);
+    res.status(500).send('عذراً، وقع خطأ أثناء توليد رابط البث الآمن للملف: ' + err.message);
   }
 });
 

@@ -94,6 +94,25 @@ export default function InteractivePlayer({
 
   const activeLesson = lessons[activeLessonIndex] || null;
 
+  // Helper to dynamically resolve public or secure redirected R2 stream links
+  const getPlayableVideoUrl = React.useCallback((url: string | undefined): string => {
+    if (!url) return '';
+    if (url.includes('/videos/') || url.includes('/documents/')) {
+      let key = '';
+      if (url.includes('/videos/')) {
+        const parts = url.split('/videos/');
+        key = 'videos/' + parts[parts.length - 1];
+      } else if (url.includes('/documents/')) {
+        const parts = url.split('/documents/');
+        key = 'documents/' + parts[parts.length - 1];
+      }
+      if (key) {
+        return `/api/video/stream?key=${encodeURIComponent(key)}`;
+      }
+    }
+    return url;
+  }, []);
+
   // Blob loading state for PDF to bypass target="_blank" sandbox & reverse proxy authentication barriers
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [loadingPdfBlob, setLoadingPdfBlob] = useState(false);
@@ -109,7 +128,9 @@ export default function InteractivePlayer({
     let createdUrl: string | null = null;
     setLoadingPdfBlob(true);
 
-    fetch(activeLesson.videoUrl)
+    const playableUrl = getPlayableVideoUrl(activeLesson.videoUrl);
+
+    fetch(playableUrl)
       .then(response => {
         if (!response.ok) {
           throw new Error(`Failed to load PDF asset (${response.status})`);
@@ -592,7 +613,7 @@ export default function InteractivePlayer({
                         <video
                           key={activeLesson.id}
                           ref={videoRef}
-                          src={activeLesson.videoUrl}
+                          src={getPlayableVideoUrl(activeLesson.videoUrl)}
                           className="w-full h-full object-contain"
                           playsInline
                           preload="metadata"
@@ -637,7 +658,7 @@ export default function InteractivePlayer({
                           </div>
                           <div className="flex gap-2">
                             <a 
-                              href={activeLesson.videoUrl} 
+                              href={getPlayableVideoUrl(activeLesson.videoUrl)} 
                               target="_blank" 
                               rel="noreferrer"
                               className="bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition-all text-[11px] cursor-pointer"
@@ -801,7 +822,7 @@ export default function InteractivePlayer({
                               </div>
                             ) : (
                               <a 
-                                href={pdfBlobUrl || activeLesson.videoUrl} 
+                                href={pdfBlobUrl || getPlayableVideoUrl(activeLesson.videoUrl)} 
                                 download={`${activeLesson.title}.pdf`}
                                 className="bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition-all text-[11px] shadow-sm cursor-pointer"
                               >
@@ -821,7 +842,7 @@ export default function InteractivePlayer({
                         ) : (
                           <div className="relative rounded-2xl border-2 border-slate-200 overflow-hidden bg-white shadow-sm h-[550px] w-full">
                             <iframe
-                              src={pdfBlobUrl ? `${pdfBlobUrl}#toolbar=1&navpanes=0&scrollbar=1` : `${activeLesson.videoUrl}#toolbar=1&navpanes=0&scrollbar=1`}
+                              src={pdfBlobUrl ? `${pdfBlobUrl}#toolbar=1&navpanes=0&scrollbar=1` : `${getPlayableVideoUrl(activeLesson.videoUrl)}#toolbar=1&navpanes=0&scrollbar=1`}
                               className="w-full h-full border-0"
                               title={activeLesson.title}
                               referrerPolicy="no-referrer"
