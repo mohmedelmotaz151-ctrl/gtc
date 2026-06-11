@@ -864,7 +864,7 @@ export default function InteractivePlayer({
                         ) : (
                           <div className="relative rounded-2xl border-2 border-slate-200 overflow-hidden bg-white shadow-sm h-[550px] w-full">
                             <iframe
-                              src={pdfBlobUrl ? `${pdfBlobUrl}#toolbar=1&navpanes=0&scrollbar=1` : `${getPlayableVideoUrl(activeLesson.videoUrl)}#toolbar=1&navpanes=0&scrollbar=1`}
+                              src={pdfBlobUrl ? pdfBlobUrl : (getPlayableVideoUrl(activeLesson.videoUrl) ? `${getPlayableVideoUrl(activeLesson.videoUrl)}#toolbar=1&navpanes=0&scrollbar=1` : '')}
                               className="w-full h-full border-0"
                               title={activeLesson.title}
                               referrerPolicy="no-referrer"

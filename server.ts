@@ -221,10 +221,10 @@ app.post('/api/cloudinary/sign', (req, res) => {
   }
 });
 
-// API endpoint to dynamically generate a presigned GET URL for secure streaming from private Cloudflare R2 bucket
+// API endpoint to dynamically proxy-stream or generate secure links from Cloudflare R2 bucket
 app.get('/api/video/stream', async (req, res) => {
+  const key = req.query.key as string;
   try {
-    const key = req.query.key as string;
     if (!key) {
       return res.status(400).send('مفتاح الملف مطلوب.');
     }
@@ -232,19 +232,62 @@ app.get('/api/video/stream', async (req, res) => {
     const client = getR2Client();
     const bucketName = process.env.R2_BUCKET_NAME || 'gcc-academy-videos';
 
-    const command = new GetObjectCommand({
+    const range = req.headers.range;
+    const commandParams: any = {
       Bucket: bucketName,
       Key: key,
-    });
+    };
+    if (range) {
+      commandParams.Range = range;
+    }
 
-    // Generate a secure GET signature with 12 hours expiration to allow reliable buffered streaming/seeking
-    const signedUrl = await getSignedUrl(client, command, { expiresIn: 43200 });
-    
-    // Redirect the browser directly to the secure Cloudflare R2 stream
-    res.redirect(302, signedUrl);
+    const command = new GetObjectCommand(commandParams);
+    const response = await client.send(command);
+
+    if (response.ContentType) {
+      res.setHeader('Content-Type', response.ContentType);
+    }
+    if (response.ContentLength) {
+      res.setHeader('Content-Length', response.ContentLength);
+    }
+    if (response.ContentRange) {
+      res.setHeader('Content-Range', response.ContentRange);
+    }
+    if (response.AcceptRanges) {
+      res.setHeader('Accept-Ranges', response.AcceptRanges);
+    }
+
+    res.status(range ? 206 : 200);
+
+    const stream = response.Body as any;
+    if (stream && typeof stream.pipe === 'function') {
+      stream.pipe(res);
+    } else if (response.Body) {
+      const arr = await response.Body.transformToByteArray();
+      res.end(Buffer.from(arr));
+    } else {
+      res.status(404).send('تعذر بث هذا الملف.');
+    }
   } catch (err: any) {
-    console.error('Error in /api/video/stream redirect generation:', err.message);
-    res.status(500).send('عذراً، وقع خطأ أثناء توليد رابط البث الآمن للملف: ' + err.message);
+    console.error('Error in direct /api/video/stream proxy-streaming:', err.message);
+    
+    // Graceful fallback to signed URL redirect in case direct S3 streaming fails or ranges cause issues
+    try {
+      if (key) {
+        console.log('Attempting 302 redirect fallback for safe-access of key:', key);
+        const client = getR2Client();
+        const bucketName = process.env.R2_BUCKET_NAME || 'gcc-academy-videos';
+        const command = new GetObjectCommand({
+          Bucket: bucketName,
+          Key: key,
+        });
+        const signedUrl = await getSignedUrl(client, command, { expiresIn: 43200 });
+        return res.redirect(302, signedUrl);
+      }
+    } catch (fallbackErr: any) {
+      console.error('Proxy streaming fallback also failed:', fallbackErr.message);
+    }
+    res.status(500).send('عذراً، وقع خطأ أثناء توليد بث آمن للملف: ' + err.message);
   }
 });
 
