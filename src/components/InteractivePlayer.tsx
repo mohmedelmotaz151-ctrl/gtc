@@ -106,6 +106,13 @@ export default function InteractivePlayer({
     ) {
       return url;
     }
+    // Robustly extract key from Cloudflare R2 URLs if they contain .r2.dev
+    if (url.includes('.r2.dev')) {
+      const match = url.match(/https?:\/\/[^\/]+\/(.+)$/);
+      if (match && match[1]) {
+        return `/api/video/stream?key=${encodeURIComponent(match[1])}`;
+      }
+    }
     if (url.includes('/videos/') || url.includes('/documents/')) {
       let key = '';
       if (url.includes('/videos/')) {

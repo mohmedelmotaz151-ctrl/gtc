@@ -1266,7 +1266,7 @@ export default function AdminDashboard({
                   <FileUploader
                     id="lesson-media-uploader"
                     accept={lessonType === 'video' ? 'video/*' : lessonType === 'pdf' ? 'application/pdf' : 'image/*,application/*'}
-                    label={`رفع ملف المحاضرة (${lessonType === 'video' ? 'فيديو' : lessonType === 'pdf' ? 'PDF' : 'مستند/عرض تقديمي'}) سحابياً لـ Cloudinary:`}
+                    label={`رفع ملف المحاضرة (${lessonType === 'video' ? 'فيديو' : lessonType === 'pdf' ? 'PDF' : 'مستند/عرض تقديمي'}) سحابياً لمخزن الأكاديمية:`}
                     onUploadSuccess={(url) => {
                       setLessonUrl(url);
                       if (editingLesson && onEditLesson) {
