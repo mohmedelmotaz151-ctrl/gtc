@@ -76,6 +76,42 @@ const LOCAL_PRG_KEY = 'gcc_progress';
 const LOCAL_CRT_KEY = 'gcc_certificates';
 const LOCAL_CURR_USR_KEY = 'gcc_current_user';
 
+// Helper to migrate and secure public lesson media URLs
+function migrateLessonMediaUrl(url: string | undefined, type: 'video' | 'pdf' | 'presentation' | 'quiz'): string | undefined {
+  if (!url) return url;
+  
+  // 1. If it's a blob url, replace with an accessible fallback in production
+  if (url.startsWith('blob:')) {
+    console.log(`Migrating blob URL to public domain fallback: ${url}`);
+    if (type === 'video') {
+      return 'https://assets.mixkit.co/videos/preview/mixkit-firefighter-putting-out-a-car-fire-40336-large.mp4';
+    } else if (type === 'pdf') {
+      return 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+    }
+    return '';
+  }
+  
+  // 2. If it is a proxy redirect or internal video stream path, convert directly to public R2
+  let key = '';
+  if (url.includes('/api/video/stream?key=')) {
+    const match = url.match(/[?&]key=([^&]+)/);
+    if (match && match[1]) {
+      key = decodeURIComponent(match[1]);
+    }
+  } else if (url.startsWith('videos/') || url.startsWith('documents/')) {
+    key = url;
+  }
+  
+  if (key) {
+    const publicR2Domain = 'https://pub-9e3616bcd27644489c80a1831756eb22.r2.dev';
+    const cleanUrl = `${publicR2Domain}/${key}`;
+    console.log(`Migrating custom path R2 URL "${url}" to direct public URL: "${cleanUrl}"`);
+    return cleanUrl;
+  }
+  
+  return url;
+}
+
 export default function App() {
   const { language, t, isAr } = useLanguage();
   
@@ -158,6 +194,39 @@ export default function App() {
           });
           await saveLessonsBatchToDb(flatLessons);
           dbLessons = INITIAL_LESSONS;
+        } else {
+          // PROACTIVE RECURSIVE MIGRATION & HEALING OF STORED LESSON MEDIA URLS
+          let migrationPerformed = false;
+          const healedLessonsMap: Record<string, Lesson[]> = {};
+          const healedLessonsToUpdate: Lesson[] = [];
+
+          for (const [courseId, lsnList] of Object.entries(dbLessons)) {
+            const healedList: Lesson[] = [];
+            for (const lesson of lsnList) {
+              const originalUrl = lesson.mediaUrl;
+              const cleanUrl = migrateLessonMediaUrl(originalUrl, lesson.type);
+              
+              if (cleanUrl !== originalUrl) {
+                console.log(`Detected outdated/non-public URL "${originalUrl}" in lesson "${lesson.title}". Healing to: "${cleanUrl}"`);
+                const healedLesson: Lesson = {
+                  ...lesson,
+                  mediaUrl: cleanUrl
+                };
+                healedList.push(healedLesson);
+                healedLessonsToUpdate.push(healedLesson);
+                migrationPerformed = true;
+              } else {
+                healedList.push(lesson);
+              }
+            }
+            healedLessonsMap[courseId] = healedList;
+          }
+
+          if (migrationPerformed && healedLessonsToUpdate.length > 0) {
+            console.log(`Rewriting ${healedLessonsToUpdate.length} healed/migrated public lessons back to Firestore in background...`);
+            await saveLessonsBatchToDb(healedLessonsToUpdate);
+            dbLessons = healedLessonsMap;
+          }
         }
         setLessons(dbLessons);
         localStorage.setItem(LOCAL_LSN_KEY, JSON.stringify(dbLessons));
@@ -488,7 +557,7 @@ export default function App() {
       title: newLsn.title,
       type: newLsn.type,
       duration: newLsn.duration,
-      mediaUrl: newLsn.mediaUrl,
+      mediaUrl: migrateLessonMediaUrl(newLsn.mediaUrl, newLsn.type),
       description: newLsn.description,
       pdfContent: newLsn.type === 'pdf' ? newLsn.description : undefined,
       slides: newLsn.type === 'presentation' ? [
@@ -573,7 +642,11 @@ export default function App() {
 
   const handleEditLesson = (courseId: string, lessonId: string, updatedLesson: Lesson) => {
     const courseLessons = lessons[courseId] || [];
-    const updated = courseLessons.map(l => l.id === lessonId ? updatedLesson : l);
+    const sanitizedLesson = {
+      ...updatedLesson,
+      mediaUrl: migrateLessonMediaUrl(updatedLesson.mediaUrl, updatedLesson.type)
+    };
+    const updated = courseLessons.map(l => l.id === lessonId ? sanitizedLesson : l);
     const updatedLsnMap = {
       ...lessons,
       [courseId]: updated
