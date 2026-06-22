@@ -123,7 +123,8 @@ export default function InteractivePlayer({
   const [loadingPdfBlob, setLoadingPdfBlob] = useState(false);
 
   useEffect(() => {
-    if (activeLesson?.type !== 'pdf' || !activeLesson?.mediaUrl) {
+    const lessonMedia = activeLesson?.mediaUrl || (activeLesson as any)?.videoUrl;
+    if (activeLesson?.type !== 'pdf' || !lessonMedia) {
       setPdfBlobUrl(null);
       setLoadingPdfBlob(false);
       return;
@@ -132,7 +133,7 @@ export default function InteractivePlayer({
     let isMounted = true;
     setLoadingPdfBlob(true);
 
-    const playableUrl = getPlayableMediaUrl(activeLesson.mediaUrl);
+    const playableUrl = getPlayableMediaUrl(lessonMedia);
 
     fetch(playableUrl)
       .then(response => {
@@ -159,7 +160,7 @@ export default function InteractivePlayer({
     return () => {
       isMounted = false;
     };
-  }, [activeLesson?.id, activeLesson?.mediaUrl]);
+  }, [activeLesson?.id, activeLesson?.mediaUrl, (activeLesson as any)?.videoUrl]);
 
   // Track video mock timeline (fallback if no real video element is mounted)
   useEffect(() => {
@@ -611,11 +612,11 @@ export default function InteractivePlayer({
                       </div>
 
                       {/* Real HTML5 Video element or simulation fallback */}
-                      {activeLesson?.mediaUrl && !videoPlayError ? (
+                      {(activeLesson?.mediaUrl || (activeLesson as any)?.videoUrl) && !videoPlayError ? (
                         <video
                           key={activeLesson.id}
                           ref={videoRef}
-                          src={getPlayableMediaUrl(activeLesson.mediaUrl)}
+                          src={getPlayableMediaUrl(activeLesson.mediaUrl || (activeLesson as any)?.videoUrl)}
                           className="w-full h-full object-contain"
                           playsInline
                           preload="metadata"
@@ -660,7 +661,7 @@ export default function InteractivePlayer({
                           </div>
                           <div className="flex gap-2">
                             <a 
-                              href={getPlayableMediaUrl(activeLesson.mediaUrl)} 
+                              href={getPlayableMediaUrl(activeLesson.mediaUrl || (activeLesson as any)?.videoUrl)} 
                               target="_blank" 
                               rel="noreferrer"
                               className="bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition-all text-[11px] cursor-pointer"
@@ -808,7 +809,7 @@ export default function InteractivePlayer({
                   <div className="space-y-6" id="pdf-lesson-content">
                     
                     {/* Embedded PDF File Viewer */}
-                    {activeLesson?.mediaUrl ? (
+                    {(activeLesson?.mediaUrl || (activeLesson as any)?.videoUrl) ? (
                       <div className="space-y-4">
                         <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
                           <div className="flex items-center gap-2">
@@ -824,7 +825,7 @@ export default function InteractivePlayer({
                               </div>
                             ) : (
                               <a 
-                                href={pdfBlobUrl || getPlayableMediaUrl(activeLesson.mediaUrl)} 
+                                href={pdfBlobUrl || getPlayableMediaUrl(activeLesson.mediaUrl || (activeLesson as any)?.videoUrl)} 
                                 download={`${activeLesson.title}.pdf`}
                                 className="bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 hover:bg-amber-400 transition-all text-[11px] shadow-sm cursor-pointer"
                               >
@@ -844,7 +845,7 @@ export default function InteractivePlayer({
                         ) : (
                           <div className="relative rounded-2xl border-2 border-slate-200 overflow-hidden bg-white shadow-sm h-[550px] w-full">
                             <iframe
-                              src={pdfBlobUrl ? pdfBlobUrl : (getPlayableMediaUrl(activeLesson.mediaUrl) ? `${getPlayableMediaUrl(activeLesson.mediaUrl)}#toolbar=1&navpanes=0&scrollbar=1` : '')}
+                              src={pdfBlobUrl ? pdfBlobUrl : (getPlayableMediaUrl(activeLesson.mediaUrl || (activeLesson as any)?.videoUrl) ? `${getPlayableMediaUrl(activeLesson.mediaUrl || (activeLesson as any)?.videoUrl)}#toolbar=1&navpanes=0&scrollbar=1` : '')}
                               className="w-full h-full border-0"
                               title={activeLesson.title}
                               referrerPolicy="no-referrer"
