@@ -47,6 +47,7 @@ export default function FileUploader({
     setFileName(file.name);
 
     let uploadedSuccessfully = false;
+    let failureReason = '';
 
     // 1. Try to fetch presigned URL and upload directly to Cloudflare R2 from the browser
     try {
@@ -83,14 +84,26 @@ export default function FileUploader({
               uploadedSuccessfully = true;
             } else {
               const errBody = await uploadRes.text().catch(() => '');
+              failureReason = `مشكلة في الرفع السحابي المباشر (${uploadRes.status}): ${errBody.slice(0, 50) || 'خطأ غير معروف'}`;
               console.warn(`Direct PUT upload failed with status (${uploadRes.status}). Base response context:`, errBody);
             }
           } catch (r2PutError: any) {
+            failureReason = `فشل في الاتصال بمخدم R2 السحابي مباشرة (قد تكون مشكلة CORS أو شبكة). تفاصيل: ${r2PutError?.message || r2PutError}`;
             console.error('Direct PUT upload to R2 failed due to network / CORS. Please ensure CORS rules are set on your Cloudflare R2 bucket (Allowed Methods: PUT, Allowed Headers: content-type, Allowed Origins: *). Error details:', r2PutError?.message || r2PutError);
           }
+        } else {
+          failureReason = presignData.error || 'فشلت تهيئة رابط الرفع السحابي.';
+        }
+      } else {
+        try {
+          const presignErrData = await presignRes.json();
+          failureReason = presignErrData.error || presignErrData.message || `خطأ سيرفر ${presignRes.status}`;
+        } catch (e) {
+          failureReason = `رمز خطأ تهيئة الرفع السحابي (${presignRes.status})`;
         }
       }
     } catch (r2ClientError: any) {
+      failureReason = `فشل طلب الرفع المباشر: ${r2ClientError.message || r2ClientError}`;
       console.warn('Direct upload attempt to Cloudflare R2 skipped or failed:', r2ClientError.message || r2ClientError);
     }
 
@@ -116,7 +129,7 @@ export default function FileUploader({
             } else {
               const text = await response.text();
               if (response.status === 413) {
-                errorMessage = 'حجم الملف المرفوع كبير جداً ويتجاوز حدود الرفع القصوى المسموحة من شبكة الخادم.';
+                errorMessage = 'حجم الملف المرفوع كبير جداً ويتجاوز حدود الرفع القصوى المسموحة من شبكة الخادم (32 ميجابايت). للرفع المباشر بلا حدود، يُرجى ضبط وتهيئة متغيرات Cloudflare R2.';
               } else {
                 errorMessage = `خطأ في السيرفر (${response.status}): ${text.slice(0, 80)}`;
               }
@@ -132,15 +145,20 @@ export default function FileUploader({
           setUploadedUrl(data.url);
           onUploadSuccess(data.url);
           uploadedSuccessfully = true;
+        } else {
+          failureReason = data.error || 'عذراً، الخادم الخلفي لم يعثر على رابط الملف بعد معالجته.';
         }
       } catch (err: any) {
+        failureReason = `${failureReason ? `${failureReason} | ` : ''}الرفع الاحتياطي عبر السيرفر فشل أيضاً: ${err.message || err}`;
         console.warn('Proxy upload handler warning:', err.message || err);
       }
+    } else if (!uploadedSuccessfully && file.size >= 200 * 1024 * 1024) {
+      failureReason = `الملف كبير جداً (${Math.round(file.size / (1024 * 1024))} ميجابايت) ولا يمكن رفعه عبر السيرفر الاحتياطي. يرجى تهيئة سحابة Cloudflare R2 لرفع الملفات الضخمة مباشرة.`;
     }
 
     // 3. If all uploads fail, show a real cloud/network error and do NOT fallback to sandboxed 'blob:' links
     if (!uploadedSuccessfully) {
-      setUploadError('فشل الرفع السحابي للملف. تأكد من تهيئة سحابة Cloudflare R2 وحجم الملف.');
+      setUploadError(failureReason || 'فشل الرفع السحابي للملف. تأكد من تهيئة سحابة Cloudflare R2 بشكل صحيح وحجم الملف.');
     }
 
     setIsUploading(false);
