@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { Upload, File, Image, Video, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, File, Image, Video, CheckCircle2, AlertCircle, Loader2, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 
 interface FileUploaderProps {
   id: string;
@@ -26,6 +26,8 @@ export default function FileUploader({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>('');
+  const [showGuide, setShowGuide] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -233,10 +235,73 @@ export default function FileUploader({
             </span>
           </div>
         ) : uploadError ? (
-          <div className="flex flex-col items-center space-y-2 text-rose-600">
-            <AlertCircle className="h-8 w-8 text-rose-500" />
-            <p className="text-xs font-bold">فشل الرفع: {uploadError}</p>
-            <p className="text-[10px] text-slate-400">انقر أو اسحب ملفاً هنا للمحاولة مجدداً</p>
+          <div className="flex flex-col items-center space-y-2 text-rose-600 w-full px-4">
+            <AlertCircle className="h-8 w-8 text-rose-500 flex-shrink-0" />
+            <p className="text-xs font-bold text-center">فشل الرفع: {uploadError}</p>
+            <p className="text-[10px] text-slate-400 text-center">انقر أو اسحب ملفاً هنا للمحاولة مجدداً</p>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowGuide(!showGuide);
+              }}
+              className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-md mt-2 flex items-center gap-1 justify-center transition-all"
+            >
+              <span>{showGuide ? 'إخفاء دليل حل مشاكل R2' : 'عرض دليل حل وتهيئة Cloudflare R2'}</span>
+              {showGuide ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+
+            {showGuide && (
+              <div 
+                onClick={(e) => e.stopPropagation()} 
+                className="bg-white rounded-xl p-4 border border-slate-200 mt-2 text-right text-xs text-slate-700 space-y-3 shadow-lg w-full max-w-md mx-auto cursor-default transition-all duration-200 block"
+              >
+                <div className="border-b border-slate-100 pb-2 mb-2 text-slate-800 font-bold flex items-center gap-1">
+                  <span>🛠️ دليل إعداد وحل مشاكل Cloudflare R2</span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="font-bold text-slate-900">1. ضبط سياسة CORS في لوحة تحكم Cloudflare:</p>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    يجب تفعيل سياسة CORS للسماح للمتصفح برفع الملفات مباشرة إلى R2 دون حظر. تفضل بزيارة إعدادات حوض التخزين (Bucket Settings) في Cloudflare ثم الصق هذا الكود في قسم **CORS Policy**:
+                  </p>
+                  <div className="relative mt-2 bg-slate-50 p-2 rounded-md border border-slate-200 font-mono text-[10px] text-left block">
+                    <pre className="overflow-x-auto max-h-[140px] whitespace-pre-wrap">{`[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["GET", "PUT", "POST", "HEAD", "OPTIONS"],
+    "AllowedOrigins": ["*"],
+    "ExposeHeaders": []
+  }
+]`}</pre>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(`[\n  {\n    "AllowedHeaders": ["*"],\n    "AllowedMethods": ["GET", "PUT", "POST", "HEAD", "OPTIONS"],\n    "AllowedOrigins": ["*"],\n    "ExposeHeaders": []\n  }\n]`);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="absolute top-1.5 right-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 p-1 rounded-md shadow-sm flex items-center gap-1 text-[10px]"
+                      title="نسخ الكود"
+                    >
+                      {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                      <span>{copied ? 'تم النسخ!' : 'نسخ'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1 pt-1 border-t border-slate-100 text-[11px]">
+                  <p className="font-bold text-slate-900 text-xs">2. تعيين متغيرات البيئة بالشكل السليم في ملف <code className="font-mono text-[10px] bg-slate-100 p-0.5 rounded text-rose-600">.env</code>:</p>
+                  <ul className="list-disc list-inside space-y-1 pr-1 text-slate-500">
+                    <li><strong className="text-slate-700 font-mono">R2_ACCOUNT_ID</strong>: معرّف الحساب لـ Cloudflare (Account ID).</li>
+                    <li><strong className="text-slate-700 font-mono">R2_ACCESS_KEY_ID</strong>: مفتاح الوصول الفريد للـ API.</li>
+                    <li><strong className="text-slate-700 font-mono">R2_SECRET_ACCESS_KEY</strong>: المفتاح السري الآمن للتخزين.</li>
+                    <li><strong className="text-slate-700 font-mono">R2_BUCKET_NAME</strong>: اسم حوض التخزين (Bucket Name).</li>
+                    <li><strong className="text-slate-700 font-mono">R2_PUBLIC_URL</strong>: الرابط العام المباشر لمحتويات Bucket لتوليد روابط المحاضرات.</li>
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center space-y-2">
