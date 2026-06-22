@@ -192,18 +192,9 @@ export default function FileUploader({
       }
     }
 
-    // 4. Secure client-side Object URL sandbox fallback. Ensures user is NEVER blocked by server/cloud network limits!
+    // 4. If all uploads fail, show a real cloud/network error and do NOT fallback to sandboxed 'blob:' links
     if (!uploadedSuccessfully) {
-      console.log('Generating high-performance browser Object URL as secure local fallback.');
-      try {
-        const localBlobUrl = URL.createObjectURL(file);
-        setUploadedUrl(localBlobUrl);
-        onUploadSuccess(localBlobUrl);
-        uploadedSuccessfully = true;
-      } catch (fallbackError: any) {
-        console.error('Local fallback failed:', fallbackError);
-        setUploadError('حجم الملف يتجاوز الحد المسموح، وفشل الرفع السحابي.');
-      }
+      setUploadError('فشل الرفع السحابي للملف. تأكد من توفر سحابة Cloudflare R2 أو Cloudinary أو حجم الملف.');
     }
 
     setIsUploading(false);
@@ -268,13 +259,11 @@ export default function FileUploader({
           <div className="flex flex-col items-center space-y-2 text-emerald-600">
             <CheckCircle2 className="h-8 w-8 text-emerald-500" />
             <p className="text-xs font-extrabold text-emerald-750">
-              {uploadedUrl.startsWith('blob:')
-                ? 'تم تأمين وبث الملف محلياً للمتصفح الحالي بنجاح (جاهز للاستعراض والاستخدام آلياً)!'
-                : uploadedUrl.includes('cloudinary') 
-                ? 'تم الرفع بنجاح وحفظه على Cloudinary!' 
+              {uploadedUrl.includes('cloudinary') 
+                ? 'تم الرفع بنجاح وحفظه على Cloudinary سحابياً (متاح للجميع)!' 
                 : (uploadedUrl.includes('r2.dev') || uploadedUrl.includes('r2.cloudflarestorage.com') || uploadedUrl.includes('r2'))
-                ? 'تم الرفع بنجاح وتأمينه في Cloudflare R2!' 
-                : 'تم الرفع بنجاح وتوجيهه للنظام السحابي!'}
+                ? 'تم الرفع بنجاح وتأمينه في Cloudflare R2 وبثه عاماً لجميع الطلاب!' 
+                : 'تم الرفع بنجاح وحفظه عاماً بمخازن الأكاديمية!'}
             </p>
             <span className="text-[10px] text-slate-500 max-w-[280px] break-all truncate underline">{uploadedUrl}</span>
             <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black mt-1">

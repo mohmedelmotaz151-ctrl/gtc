@@ -97,35 +97,8 @@ export default function InteractivePlayer({
   // Helper to dynamically resolve public or secure redirected R2 stream links
   const getPlayableMediaUrl = React.useCallback((url: string | undefined): string => {
     if (!url) return '';
-    // Skip external public CDNs, mixkit previews, and static assets
-    if (
-      url.includes('mixkit.co') || 
-      url.includes('cloudinary.com') || 
-      url.includes('unsplash.com') || 
-      url.includes('imgix.net')
-    ) {
-      return url;
-    }
-    // Robustly extract key from Cloudflare R2 URLs if they contain .r2.dev
-    if (url.includes('.r2.dev')) {
-      const match = url.match(/https?:\/\/[^\/]+\/(.+)$/);
-      if (match && match[1]) {
-        return `/api/video/stream?key=${encodeURIComponent(match[1])}`;
-      }
-    }
-    if (url.includes('/videos/') || url.includes('/documents/')) {
-      let key = '';
-      if (url.includes('/videos/')) {
-        const parts = url.split('/videos/');
-        key = 'videos/' + parts[parts.length - 1];
-      } else if (url.includes('/documents/')) {
-        const parts = url.split('/documents/');
-        key = 'documents/' + parts[parts.length - 1];
-      }
-      if (key) {
-        return `/api/video/stream?key=${encodeURIComponent(key)}`;
-      }
-    }
+    // Return standard public cloud URL (Cloudflare R2 public subdomain, Cloudinary, or relative server path)
+    // directly so that videos stream at maximum speed with full worldwide public access, bypassing server proxies.
     return url;
   }, []);
 
