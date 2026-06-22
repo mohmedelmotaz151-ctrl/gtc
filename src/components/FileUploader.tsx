@@ -19,7 +19,7 @@ export default function FileUploader({
   accept,
   label,
   onUploadSuccess,
-  helperText = "يدعم الملفات الصوتية، المرئية، والمستندات عبر السيرفر السحابي كلويديناري"
+  helperText = "يدعم الملفات الصوتية، المرئية، والمستندات عبر السحابة الآمنة Cloudflare R2"
 }: FileUploaderProps) {
   const [dragOver, setDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -94,61 +94,7 @@ export default function FileUploader({
       console.warn('Direct upload attempt to Cloudflare R2 skipped or failed:', r2ClientError.message || r2ClientError);
     }
 
-    // 2. Try direct browser-side Cloudinary Upload using signed signature (completely bypasses server request limits)
-    if (!uploadedSuccessfully) {
-      try {
-        console.log(`Attempting direct browser-side signed upload to Cloudinary for: ${file.name}`);
-        const signRes = await fetch('/api/cloudinary/sign', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (signRes.ok) {
-          const signData = await signRes.json();
-          if (signData.success && signData.signature) {
-            console.log('Successfully generated direct Cloudinary upload signature.');
-            
-            let resourceType = 'raw';
-            if (file.type.startsWith('image/')) {
-              resourceType = 'image';
-            } else if (file.type.startsWith('video/')) {
-              resourceType = 'video';
-            }
-
-            const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${signData.cloudName}/${resourceType}/upload`;
-            const cloudFormData = new FormData();
-            cloudFormData.append('file', file);
-            cloudFormData.append('api_key', signData.apiKey);
-            cloudFormData.append('timestamp', signData.timestamp.toString());
-            cloudFormData.append('signature', signData.signature);
-            cloudFormData.append('folder', signData.folder);
-
-            const uploadCloudRes = await fetch(cloudinaryUrl, {
-              method: 'POST',
-              body: cloudFormData
-            });
-
-            if (uploadCloudRes.ok) {
-              const uploadCloudData = await uploadCloudRes.json();
-              if (uploadCloudData.secure_url) {
-                console.log('Direct browser-side Cloudinary upload succeeded!', uploadCloudData.secure_url);
-                setUploadedUrl(uploadCloudData.secure_url);
-                onUploadSuccess(uploadCloudData.secure_url);
-                uploadedSuccessfully = true;
-              }
-            } else {
-              console.warn(`Direct Cloudinary upload response failed with status: ${uploadCloudRes.status}`);
-            }
-          }
-        }
-      } catch (clClientError: any) {
-        console.warn('Direct browser-to-Cloudinary upload failed or was skipped:', clClientError.message || clClientError);
-      }
-    }
-
-    // 3. Server-side proxy upload fallback if direct uploads failed, only for files less than 200 MB (suitable for all Cloud Run containers!)
+    // 2. Server-side proxy upload fallback if direct uploads failed, only for files less than 200 MB (suitable for all Cloud Run containers!)
     if (!uploadedSuccessfully && file.size < 200 * 1024 * 1024) {
       console.log('Starting backup upload via server fallback...');
       const formData = new FormData();
@@ -192,9 +138,9 @@ export default function FileUploader({
       }
     }
 
-    // 4. If all uploads fail, show a real cloud/network error and do NOT fallback to sandboxed 'blob:' links
+    // 3. If all uploads fail, show a real cloud/network error and do NOT fallback to sandboxed 'blob:' links
     if (!uploadedSuccessfully) {
-      setUploadError('فشل الرفع السحابي للملف. تأكد من توفر سحابة Cloudflare R2 أو Cloudinary أو حجم الملف.');
+      setUploadError('فشل الرفع السحابي للملف. تأكد من تهيئة سحابة Cloudflare R2 وحجم الملف.');
     }
 
     setIsUploading(false);
@@ -259,9 +205,7 @@ export default function FileUploader({
           <div className="flex flex-col items-center space-y-2 text-emerald-600">
             <CheckCircle2 className="h-8 w-8 text-emerald-500" />
             <p className="text-xs font-extrabold text-emerald-750">
-              {uploadedUrl.includes('cloudinary') 
-                ? 'تم الرفع بنجاح وحفظه على Cloudinary سحابياً (متاح للجميع)!' 
-                : (uploadedUrl.includes('r2.dev') || uploadedUrl.includes('r2.cloudflarestorage.com') || uploadedUrl.includes('r2'))
+              {(uploadedUrl.includes('r2.dev') || uploadedUrl.includes('r2.cloudflarestorage.com') || uploadedUrl.includes('r2'))
                 ? 'تم الرفع بنجاح وتأمينه في Cloudflare R2 وبثه عاماً لجميع الطلاب!' 
                 : 'تم الرفع بنجاح وحفظه عاماً بمخازن الأكاديمية!'}
             </p>

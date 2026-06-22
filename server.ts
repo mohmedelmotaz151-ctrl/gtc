@@ -6,7 +6,6 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
@@ -45,22 +44,10 @@ function getR2Client(): S3Client {
 const app = express();
 const PORT = 3000;
 
-// Configuration for Cloudinary using user-provided fallback values to ensure instant operation
-const cloudName = process.env.CLOUDINARY_CLOUD_NAME || "dtd6qwe2a";
-const apiKey = process.env.CLOUDINARY_API_KEY || "694234951845448";
-const apiSecret = process.env.CLOUDINARY_API_SECRET || "Md8UOXGYwQJu_Lvh81SbiCmDUL0";
-
-cloudinary.config({
-  cloud_name: cloudName,
-  api_key: apiKey,
-  api_secret: apiSecret,
-  secure: true
-});
-
 // Paths for persistent training programs databank JSON storage
 const DATA_FILE_PATH = path.join(process.cwd(), 'databank_store.json');
 
-// Ensure database file existence and fetch backup from Cloudinary if needed in the background
+// Ensure database file existence and fetch backup from Cloudflare R2 if needed in the background
 let trainingDataCache: any = null;
 
 const loadTrainingPrograms = async () => {
@@ -70,24 +57,29 @@ const loadTrainingPrograms = async () => {
       trainingDataCache = JSON.parse(content);
       console.log('Successfully loaded training programs from local storage.');
     } else {
-      // Try to recover from Cloudinary backup
-      console.log('Local store not found. Attempting backup reconstruction from Cloudinary...');
+      // Try to recover from Cloudflare R2 backup
+      console.log('Local store not found. Attempting backup reconstruction from Cloudflare R2...');
       try {
-        const cloudBackupUrl = cloudinary.url('gcc_backups/databank_store', { resource_type: 'raw' });
-        // Since Cloudinary raw URL returns the file, let's fetch it
-        const response = await fetch(cloudBackupUrl);
-        if (response.ok) {
-          const content = await response.json();
+        const client = getR2Client();
+        const bucketName = process.env.R2_BUCKET_NAME || 'gcc-academy-videos';
+        const command = new GetObjectCommand({
+          Bucket: bucketName,
+          Key: 'backups/databank_store.json',
+        });
+        const response = await client.send(command);
+        if (response.Body) {
+          const contentStr = await response.Body.transformToString();
+          const content = JSON.parse(contentStr);
           if (content && (content.courses || content.categories)) {
             trainingDataCache = content;
             fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(trainingDataCache, null, 2));
-            console.log('Restored training programs successfully from Cloudinary backup.');
+            console.log('Restored training programs successfully from Cloudflare R2 backup.');
           }
         } else {
-          console.log('No Cloudinary backup found, starting fresh.');
+          console.log('No Cloudflare R2 backup found, starting fresh.');
         }
-      } catch (backupErr) {
-        console.log('Cloudinary restore not available or failed:', backupErr);
+      } catch (backupErr: any) {
+        console.log('Cloudflare R2 restore not available or failed:', backupErr.message);
       }
     }
   } catch (err) {
@@ -181,44 +173,18 @@ ${customNote ? `ملاحظة إضافية لتضمينها في البريد: ${
   }
 });
 
-// API endpoint for Cloudinary configuration status
+// API endpoint for Cloudinary configuration status (Disabled in favor of Cloudflare R2)
 app.get('/api/cloudinary/status', (req, res) => {
   res.json({
-    configured: !!cloudName && !!apiKey && !!apiSecret,
-    cloudName,
-    apiKey: apiKey ? `***${apiKey.slice(-4)}` : null
+    configured: false,
+    disabled: true,
+    message: 'تم إلغاء وتعطيل Cloudinary والاعتماد الكلي التام على Cloudflare R2.'
   });
 });
 
-// API endpoint to sign requests for direct client-side upload to Cloudinary (bypassing 4.5MB serverless limits)
+// API endpoint to sign requests for direct client-side upload (Disabled in favor of Cloudflare R2)
 app.post('/api/cloudinary/sign', (req, res) => {
-  try {
-    const timestamp = Math.round((new Date()).getTime() / 1000);
-    const folder = 'gcc_academy_media';
-    
-    // Alphabetically sorted parameters to be signed
-    const paramsToSign = {
-      folder: folder,
-      timestamp: timestamp,
-    };
-    
-    const signature = cloudinary.utils.api_sign_request(
-      paramsToSign,
-      process.env.CLOUDINARY_API_SECRET || "Md8UOXGYwQJu_Lvh81SbiCmDUL0"
-    );
-    
-    res.json({
-      success: true,
-      signature,
-      timestamp,
-      apiKey: process.env.CLOUDINARY_API_KEY || "694234951845448",
-      cloudName: process.env.CLOUDINARY_CLOUD_NAME || "dtd6qwe2a",
-      folder: folder
-    });
-  } catch (err: any) {
-    console.error('Error generating Cloudinary upload signature:', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
+  res.status(403).json({ success: false, error: 'تعذر الاتصال بـ Cloudinary نظرًا لتعطيله والاعتماد على Cloudflare R2.' });
 });
 
 // API endpoint to dynamically proxy-stream or generate secure links from Cloudflare R2 bucket
@@ -337,7 +303,7 @@ app.post('/api/upload/presign', async (req, res) => {
   }
 });
 
-// API endpoint for Media file uploading (with intelligent routing for videos <= 15MB to Cloudinary, and > 15MB to Cloudflare R2)
+// API endpoint for Media file uploading (Exclusive storage to Cloudflare R2, fallback to local disk)
 app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -350,41 +316,7 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
                     req.file.originalname.endsWith('.avi');
     const fileSize = req.file.size;
 
-    const limit15MB = 15 * 1024 * 1024;
-
     console.log(`Received file for upload: ${req.file.originalname} (${req.file.mimetype}), Size: ${fileSize} bytes`);
-
-    // Dynamic resource type identifier for Cloudinary backend api
-    const uploadToCloudinary = (fileBuffer: Buffer, mimetype: string, originalname: string) => {
-      let resourceType: 'image' | 'video' | 'raw' | 'auto' = 'auto';
-      if (mimetype.startsWith('video/')) {
-        resourceType = 'video';
-      } else if (mimetype.startsWith('image/')) {
-        resourceType = 'image';
-      } else {
-        resourceType = 'raw';
-      }
-
-      return new Promise<any>((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            folder: 'gcc_academy_media',
-            resource_type: resourceType,
-            filename_override: originalname,
-            use_filename: true
-          },
-          (error, result) => {
-            if (error) {
-              console.error('Cloudinary stream upload error:', error);
-              reject(error);
-            } else {
-              resolve(result);
-            }
-          }
-        );
-        uploadStream.end(fileBuffer);
-      });
-    };
 
     // Helper function to safely write the file locally if cloud uploads are unavailable or fail.
     // We return a relative URL starting with `/assets` which is guaranteed to work 
@@ -459,37 +391,22 @@ app.post('/api/upload', uploadHandler.single('file'), async (req, res) => {
         });
 
       } catch (r2Error: any) {
-        console.warn(`Direct R2 upload from server proxy failed: ${r2Error.message}. Escalating fallback to Cloudinary...`);
+        console.warn(`Direct R2 upload from server proxy failed: ${r2Error.message}. Escalating to local fallback...`);
       }
     }
 
-    // Fallback or Non-R2 route: Try Cloudinary first, then Local Fallback
-    console.log(`Routing file to Cloudinary fallback...`);
-    try {
-      const cloudinaryResult = await uploadToCloudinary(req.file.buffer, req.file.mimetype, req.file.originalname);
-      console.log('Cloudinary upload success. URL:', cloudinaryResult.secure_url);
-
-      return res.json({
-        success: true,
-        url: cloudinaryResult.secure_url,
-        provider: 'cloudinary',
-        resourceType: cloudinaryResult.resource_type,
-        duration: cloudinaryResult.duration,
-        format: cloudinaryResult.format,
-        publicId: cloudinaryResult.public_id,
-        size: fileSize
-      });
-    } catch (cloudinaryError: any) {
-      console.warn(`Cloudinary upload failed: ${cloudinaryError.message}. Escalating local server fallback...`);
-      const localUrl = saveLocalFallback(req.file);
-      return res.json({
-        success: true,
-        url: localUrl,
-        provider: 'local_dev_fallback',
-        mimetype: req.file.mimetype,
-        size: fileSize
-      });
+    if (!hasR2) {
+      console.warn("Cloudflare R2 triggers are missing or incomplete. Redirecting server proxy directly to static fallback.");
     }
+
+    const localUrl = saveLocalFallback(req.file);
+    return res.json({
+      success: true,
+      url: localUrl,
+      provider: 'local_dev_fallback',
+      mimetype: req.file.mimetype,
+      size: fileSize
+    });
 
   } catch (err: any) {
     console.error('Critical upload handler generic exception:', err);
@@ -522,30 +439,29 @@ app.post('/api/training-data', async (req, res) => {
     fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(payload, null, 2), 'utf-8');
     console.log('Persisted training programs databank locally of size:', JSON.stringify(payload).length);
 
-    // 2. Sync to Cloudinary asynchronously as a secure backup raw file
+    // 2. Sync to Cloudflare R2 asynchronously as a secure backup raw file
     try {
-      const buffer = Buffer.from(JSON.stringify(payload, null, 2), 'utf-8');
-      const uploadBackup = () => {
-        return new Promise<any>((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            {
-              resource_type: 'raw',
-              public_id: 'gcc_backups/databank_store',
-              overwrite: true
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          stream.end(buffer);
-        });
-      };
-      
-      const uploadResult = await uploadBackup();
-      console.log('Successfully backed up training database to Cloudinary raw asset:', uploadResult.secure_url);
-    } catch (cwErr) {
-      console.warn('Could not save raw backup to Cloudinary (will run off local copy):', cwErr);
+      let hasR2 = false;
+      try {
+        hasR2 = !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY);
+      } catch (e) {}
+
+      if (hasR2) {
+        const client = getR2Client();
+        const bucketName = process.env.R2_BUCKET_NAME || 'gcc-academy-videos';
+        const buffer = Buffer.from(JSON.stringify(payload, null, 2), 'utf-8');
+        await client.send(new PutObjectCommand({
+          Bucket: bucketName,
+          Key: 'backups/databank_store.json',
+          Body: buffer,
+          ContentType: 'application/json'
+        }));
+        console.log('Successfully backed up training database to Cloudflare R2 raw asset!');
+      } else {
+        console.log('Skipping Cloudflare R2 database backup, as R2 configurations are not set.');
+      }
+    } catch (cwErr: any) {
+      console.warn('Could not save raw backup to Cloudflare R2:', cwErr.message);
     }
 
     return res.json({ success: true, message: 'تم حفظ وتأمين البرامج التدريبية محلياً وسحابياً بحمد الله.' });

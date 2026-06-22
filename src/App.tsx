@@ -130,6 +130,10 @@ export default function App() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdminView, setIsAdminView] = useState(false);
+  const [verifiedCertCode, setVerifiedCertCode] = useState<string | null>(() => {
+    const match = window.location.pathname.match(/^\/verify\/([^/]+)/);
+    return match ? match[1] : null;
+  });
 
   // Modals visibility states
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -230,6 +234,12 @@ export default function App() {
         }
         setLessons(dbLessons);
         localStorage.setItem(LOCAL_LSN_KEY, JSON.stringify(dbLessons));
+
+        // 4. Fetch Certificates from Firestore
+        let dbCerts = await fetchCertificatesFromDb();
+        setCertificates(dbCerts);
+        localStorage.setItem(LOCAL_CRT_KEY, JSON.stringify(dbCerts));
+
         console.log("Firebase Firestore synchronisation completed successfully!");
       } catch (err) {
         console.error("Error synching list data from Firestore, loading from LocalStorage/default:", err);

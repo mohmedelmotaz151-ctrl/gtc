@@ -1134,7 +1134,7 @@ export default function InteractivePlayer({
                     {!examPassed ? (
                       <button
                         onClick={handleRetryExam}
-                        className="bg-amber-500 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-xs transition-style hover:bg-amber-450 shadow-md flex items-center gap-2"
+                        className="bg-amber-500 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-xs transition-colors hover:bg-amber-450 shadow-md flex items-center gap-2 cursor-pointer"
                       >
                         <RotateCcw className="h-4.5 w-4.5" />
                         <span>تقديم محاولة جديدة للاختبار</span>
@@ -1151,7 +1151,7 @@ export default function InteractivePlayer({
                         setShowFinalExam(false);
                         handleRetryExam();
                       }}
-                      className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-xl transition-all"
+                      className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-xl transition-all cursor-pointer"
                     >
                       العودة للمحاضرات والدروس
                     </button>

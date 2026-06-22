@@ -12,3 +12,60 @@ body {
   background-color: #f8fafc;
   color: #0f172a;
 }
+
+/* HIGHLY PROFESSIONAL CERTIFICATE PRINT VIEW SYSTEM */
+@media print {
+  /* Hide all generic workspace layout and navigation elements */
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Make sure background images, gradients, and borders render beautifully and are not stripped by browsers */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Ensure only the active print target is visible, absolute centered on the printed page */
+  body > div:not(#printable-gcc-certificate),
+  main > div:not(#printable-gcc-certificate),
+  #main-layout > *:not(main),
+  main > *:not(#certificate-preview-viewport),
+  #certificate-preview-viewport > *:not(#printable-gcc-certificate),
+  #certificate-verification-page-container > *:not(#printable-gcc-certificate) {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  #printable-gcc-certificate {
+    display: block !important;
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 3rem !important;
+    border: 14px double #78350f !important;
+    background-color: #faf9f6 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  @page {
+    size: landscape;
+    margin: 0.5cm;
+  }
+}
